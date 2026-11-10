@@ -125,9 +125,11 @@ Install the Supabase CLI, link the project, and apply both migrations:
 ```powershell
 supabase link --project-ref avixsqfvfonlioslhxif
 supabase db push
+supabase config diff --remote=avixsqfvfonlioslhxif
+supabase config push --remote=avixsqfvfonlioslhxif --yes
 ```
 
-Then follow [`supabase/README.md`](supabase/README.md) to configure email authentication, password recovery, web push, the incident webhook, and stale-tracker maintenance.
+The checked-in Auth configuration disables registration confirmation, so email/password signup creates a session immediately without sending an OTP. Then follow [`supabase/README.md`](supabase/README.md) to configure password recovery, web push, the incident webhook, and stale-tracker maintenance.
 
 ### 2. Run the web application
 

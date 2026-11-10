@@ -131,9 +131,13 @@ public class MainActivity extends Activity {
             submit.setEnabled(false); submit.setText(signup ? "CREATING ACCOUNT..." : "SIGNING IN...");
             executor.execute(() -> {
                 try {
-                    JSONObject response = signup ? api.signUp(name.getText().toString().trim(), email.getText().toString().trim(), phone.getText().toString().trim(), emergency.getText().toString().trim(), password.getText().toString()) : api.signIn(email.getText().toString().trim(), password.getText().toString());
+                    JSONObject response;
+                    if (signup) {
+                        if (!api.instantEmailSignupEnabled()) throw new Exception("Account registration is temporarily unavailable. RoadPing signup does not use an email OTP.");
+                        response = api.signUp(name.getText().toString().trim(), email.getText().toString().trim(), phone.getText().toString().trim(), emergency.getText().toString().trim(), password.getText().toString());
+                    } else response = api.signIn(email.getText().toString().trim(), password.getText().toString());
                     String access = response.optString("access_token");
-                    if (access.isEmpty()) { runOnUiThread(() -> { toast("Account created. You can now sign in."); showLogin(false); }); return; }
+                    if (access.isEmpty()) throw new Exception("Your account could not be started immediately. RoadPing registration does not require email confirmation.");
                     JSONObject user = response.optJSONObject("user");
                     session.save(access, response.optString("refresh_token"), user == null ? "" : user.optString("id"), email.getText().toString().trim());
                     runOnUiThread(() -> showApp(0));

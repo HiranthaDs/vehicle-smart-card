@@ -10,8 +10,8 @@ android {
         applicationId = "com.roadping.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 3
+        versionName = "2.0.1"
 
         buildConfigField("String", "SUPABASE_URL", "\"https://avixsqfvfonlioslhxif.supabase.co\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"sb_publishable_K2wL48ChCSml70JYwIqCfQ_FtyMbQBN\"")

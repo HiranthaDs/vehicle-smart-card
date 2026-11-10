@@ -1,0 +1,8 @@
+#:schema https://supabase.com/schemas/config/v1.json
+
+project_id = "vehicle_smart_card"
+
+# RoadPing uses email and password for identity, but registration must create a
+# session immediately. OTP email remains reserved for password recovery.
+[auth.email]
+enable_confirmations = false

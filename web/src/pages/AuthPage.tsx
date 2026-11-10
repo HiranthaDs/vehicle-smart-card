@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { Button, Toast } from '../components/Ui'
 import { useAuth } from '../context'
-import { humanError, supabase } from '../lib/supabase'
+import { humanError, instantEmailSignupEnabled, supabase } from '../lib/supabase'
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const isSignup = mode === 'signup'
@@ -30,6 +30,9 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     setMessage(null)
     try {
       if (isSignup) {
+        if (!await instantEmailSignupEnabled()) {
+          throw new Error('Account registration is temporarily unavailable. RoadPing signup does not use an email OTP.')
+        }
         const { data, error } = await supabase.auth.signUp({
           email: form.email.trim(),
           password: form.password,
@@ -42,18 +45,18 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           },
         })
         if (error) throw error
-        if (data.session) {
-          await supabase.from('profiles').upsert({
-            id: data.user!.id,
-            full_name: form.fullName.trim(),
-            phone: form.phone.trim(),
-            emergency_contact_phone: form.emergencyPhone.trim(),
-            phone_visibility: 'hidden',
-          })
-          navigate('/app', { replace: true })
-        } else {
-          setMessage({ type: 'success', text: 'Account created. Check your email to confirm your address, then sign in.' })
+        if (!data.session || !data.user) {
+          throw new Error('Your account could not be started immediately. RoadPing registration does not require email confirmation.')
         }
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: form.fullName.trim(),
+          phone: form.phone.trim(),
+          emergency_contact_phone: form.emergencyPhone.trim(),
+          phone_visibility: 'hidden',
+        })
+        if (profileError) throw profileError
+        navigate('/app', { replace: true })
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: form.email.trim(), password: form.password })
         if (error) throw error

@@ -2,7 +2,7 @@
 
 1. Rotate the exposed secret/service key before doing anything else. Never put a service key in the website or Android app.
 2. Link the Supabase CLI to project `avixsqfvfonlioslhxif` and run `supabase db push` to apply both SQL migrations in order.
-3. In Authentication → Providers → Email, turn **Confirm email off**. Signup is intentionally email/password only and never displays an OTP step.
+3. Apply `config.toml` to the hosted project with `supabase config diff --remote=avixsqfvfonlioslhxif`, review the Auth change, then run `supabase config push --remote=avixsqfvfonlioslhxif --yes`. This disables **Confirm email**, so signup creates a session immediately and sends no registration email or OTP. The equivalent Dashboard setting is Authentication → Sign In / Providers → Email → Confirm email.
 4. In Authentication → Email Templates → Reset Password, send the six-digit token using `{{ .Token }}`. Password recovery is the only account flow that asks for an OTP. Configure production SMTP before launch.
 5. In Authentication → URL Configuration, add the production RoadPing URL and localhost development URLs to the allow-list.
 6. Generate a VAPID key pair, add the public key to `web/.env.local`, and set the incident-push function secrets from its `.env.example`.

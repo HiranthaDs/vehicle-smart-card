@@ -32,6 +32,11 @@ public class SupabaseApi {
         return requestObject("POST", "/auth/v1/signup", null, body, null);
     }
 
+    public boolean instantEmailSignupEnabled() throws Exception {
+        return requestObject("GET", "/auth/v1/settings", null, null, null)
+                .optBoolean("mailer_autoconfirm", false);
+    }
+
     public JSONObject refresh(String refreshToken) throws Exception {
         JSONObject body = new JSONObject().put("refresh_token", refreshToken);
         return requestObject("POST", "/auth/v1/token?grant_type=refresh_token", null, body, null);
