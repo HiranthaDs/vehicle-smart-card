@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { Button, Toast } from '../components/Ui'
 import { useAuth } from '../context'
-import { humanError, instantEmailSignupEnabled, supabase } from '../lib/supabase'
+import { humanError, supabase } from '../lib/supabase'
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const isSignup = mode === 'signup'
@@ -30,9 +30,6 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     setMessage(null)
     try {
       if (isSignup) {
-        if (!await instantEmailSignupEnabled()) {
-          throw new Error('Account registration is temporarily unavailable. RoadPing signup does not use an email OTP.')
-        }
         const { data, error } = await supabase.auth.signUp({
           email: form.email.trim(),
           password: form.password,
@@ -96,7 +93,6 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             <label><span>Email address</span><div className="input-wrap"><Mail size={18} /><input required type="email" autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="you@example.com" /></div></label>
             {isSignup && <div className="two-fields"><label><span>Phone number</span><div className="input-wrap"><Phone size={18} /><input required type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="+94 77 123 4567" /></div></label><label><span>Emergency contact</span><div className="input-wrap"><Phone size={18} /><input required type="tel" value={form.emergencyPhone} onChange={(e) => update('emergencyPhone', e.target.value)} placeholder="+94 71 987 6543" /></div></label></div>}
             <label><span>Password</span><div className="input-wrap"><LockKeyhole size={18} /><input required minLength={8} type={showPassword ? 'text' : 'password'} autoComplete={isSignup ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="At least 8 characters" /><button type="button" className="input-action" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
-            {!isSignup && <Link className="forgot-link" to="/forgot-password">Forgot password?</Link>}
             <Button type="submit" className="full auth-submit" loading={loading}>{isSignup ? 'Create secure account' : 'Sign in to RoadPing'} <ArrowRight size={17} /></Button>
           </form>
           <p className="auth-switch">{isSignup ? 'Already have an account?' : 'New to RoadPing?'} <Link to={isSignup ? '/login' : '/signup'}>{isSignup ? 'Log in' : 'Create an account'}</Link></p>

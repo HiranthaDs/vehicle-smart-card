@@ -6,7 +6,7 @@ import { Button } from '../components/Ui'
 import { humanError, supabase } from '../lib/supabase'
 import type { PublicVehicleProfile } from '../types'
 
-const demoProfile: PublicVehicleProfile = { vehicle_id: 'demo', public_token: 'demo-roadping', registration_number: 'WP CAB-2048', make: 'Toyota', model: 'Corolla', color: 'Pearl white', vehicle_type: 'Car', owner_name: 'Nimal P.', phone_display: '077 ••• •48', phone_href: null, social_links: {} }
+const demoProfile: PublicVehicleProfile = { vehicle_id: 'demo', public_token: 'demo-roadping', registration_number: 'CAB-2048', make: 'Toyota', model: 'Corolla', color: 'Pearl white', vehicle_type: 'Car', owner_name: 'Nimal P.', phone_display: '077 ••• •48', phone_href: null, social_links: {} }
 
 const alertTypes = [
   { id: 'blocking_access', icon: '🚗', label: 'Blocking access', detail: 'The vehicle is blocking a gate or driveway' },

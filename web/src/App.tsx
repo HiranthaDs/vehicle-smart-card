@@ -11,9 +11,9 @@ import { CardPage } from './pages/CardPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PublicVehiclePage } from './pages/PublicVehiclePage'
-import { PasswordResetPage } from './pages/PasswordResetPage'
 import { TrackingPage } from './pages/TrackingPage'
 import { PrintOrderPage } from './pages/PrintOrderPage'
+import { VehicleDetailsPage } from './pages/VehicleDetailsPage'
 
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -28,11 +28,11 @@ export default function App() {
     <Route path="/" element={<HomePage />} />
     <Route path="/login" element={<AuthPage mode="login" />} />
     <Route path="/signup" element={<AuthPage mode="signup" />} />
-    <Route path="/forgot-password" element={<PasswordResetPage />} />
     <Route path="/v/:token" element={<PublicVehiclePage />} />
     <Route path="/app" element={<Protected><DashboardPage /></Protected>} />
     <Route path="/app/vehicles" element={<Protected><VehiclesPage /></Protected>} />
     <Route path="/app/vehicles/new" element={<Protected><VehicleFormPage /></Protected>} />
+    <Route path="/app/vehicles/:id" element={<Protected><VehicleDetailsPage /></Protected>} />
     <Route path="/app/vehicles/:id/edit" element={<Protected><VehicleFormPage /></Protected>} />
     <Route path="/app/card/:id" element={<Protected><CardPage /></Protected>} />
     <Route path="/app/print/:vehicleId" element={<Protected><PrintOrderPage /></Protected>} />

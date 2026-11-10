@@ -6,7 +6,8 @@ public final class Models {
     private Models() {}
 
     public static class Vehicle {
-        public String id, publicToken, registration, nickname, type, make, model, color, theme;
+        public String id, publicToken, registration, nickname, type, make, model, color, theme, cardLayout;
+        public int year;
         public boolean active;
 
         public static Vehicle fromJson(JSONObject json) {
@@ -20,6 +21,8 @@ public final class Models {
             v.model = json.optString("model");
             v.color = json.optString("color");
             v.theme = json.optString("card_theme", "midnight");
+            v.cardLayout = json.optString("card_layout", "balanced");
+            v.year = json.optInt("year", 0);
             v.active = json.optBoolean("is_active", true);
             return v;
         }
@@ -76,6 +79,28 @@ public final class Models {
             JSONObject vehicle = json.optJSONObject("vehicles");
             trip.registration = vehicle == null ? "Vehicle" : vehicle.optString("registration_number", "Vehicle");
             return trip;
+        }
+    }
+
+    public static class TrackerDevice {
+        public String id, name, displayMode, lastSeenAt, registration;
+        public boolean tracking, networkConnected;
+        public double latitude = Double.NaN, longitude = Double.NaN, speedMps;
+
+        public static TrackerDevice fromJson(JSONObject json) {
+            TrackerDevice device = new TrackerDevice();
+            device.id = json.optString("id");
+            device.name = json.optString("name", "Vehicle player");
+            device.displayMode = json.optString("display_mode", "journey");
+            device.lastSeenAt = json.optString("last_seen_at");
+            device.tracking = json.optBoolean("is_tracking");
+            device.networkConnected = json.optBoolean("network_connected");
+            if (!json.isNull("last_latitude")) device.latitude = json.optDouble("last_latitude");
+            if (!json.isNull("last_longitude")) device.longitude = json.optDouble("last_longitude");
+            device.speedMps = json.optDouble("last_speed_mps");
+            JSONObject vehicle = json.optJSONObject("vehicles");
+            device.registration = vehicle == null ? "Vehicle" : vehicle.optString("registration_number", "Vehicle");
+            return device;
         }
     }
 }

@@ -77,6 +77,8 @@ public class TrackingForegroundService extends Service implements LocationListen
 
     @Override public void onLocationChanged(Location location) {
         if (!session.trackingEnabled()) return;
+        session.setLastLocation(location.getLatitude(), location.getLongitude(), location.hasSpeed() ? Math.max(0, location.getSpeed()) : 0,
+                location.hasBearing() ? location.getBearing() : 0, location.hasAccuracy() ? location.getAccuracy() : 0, location.getTime());
         long now = System.currentTimeMillis();
         lastSequence = Math.max(lastSequence + 1, now);
         try {

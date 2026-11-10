@@ -1,8 +1,8 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.RoadPing" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">@font/inter_regular</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
         <item name="android:statusBarColor">@color/surface</item>
         <item name="android:navigationBarColor">@color/white</item>
         <item name="android:windowActionModeOverlay">true</item>

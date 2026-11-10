@@ -42,6 +42,8 @@
 .vehicle-card.roadping-card.theme-ocean { background: #1043f9; --card-soft: #e0e6ff; --card-accent: #ffffff; }
 .vehicle-card.roadping-card.theme-ember { background: #ff3454; --card-ink: #080808; --card-soft: #3a0b14; --card-line: #08080833; --card-accent: #080808; }
 .vehicle-card.roadping-card.theme-forest { background: #18cb96; --card-ink: #080808; --card-soft: #103f32; --card-line: #08080833; --card-accent: #080808; }
+.vehicle-card.roadping-card.theme-sand { background: #e8d8b7; --card-ink: #17130d; --card-soft: #62543d; --card-line: #17130d2b; --card-accent: #1043f9; }
+.vehicle-card.roadping-card.theme-violet { background: #5d36c9; --card-soft: #ded5ff; --card-accent: #63f3c6; }
 .roadping-card .rp-card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .roadping-card .rp-card-brand { font-family: Anton, 'Arial Narrow', sans-serif; font-size: clamp(20px, 6cqi, 28px); line-height: 1; letter-spacing: -.025em; }
 .roadping-card .rp-card-brand > span { display: inline-block; margin-left: 3px; font-family: Inter, sans-serif; color: var(--card-accent); font-size: .7em; vertical-align: top; }
@@ -49,7 +51,7 @@
 .roadping-card .rp-card-status i { width: 5px; height: 5px; border-radius: 50%; background: #18cb96; }
 .roadping-card.theme-forest .rp-card-status i, .roadping-card.theme-ember .rp-card-status i { background: #080808; }
 .roadping-card .rp-card-status.paused i { background: #aaa; }
-.roadping-card .rp-card-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 30%); align-items: center; gap: 16px; margin: 30px 0 22px; }
+.roadping-card .rp-card-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(112px, 36%); align-items: center; gap: 18px; margin: 26px 0 20px; }
 .roadping-card .rp-card-identity { min-width: 0; }
 .roadping-card .rp-card-label { display: block; font-family: Inter, sans-serif; font-size: clamp(7px, 1.8cqi, 9px); font-weight: 500; line-height: 1.5; letter-spacing: .12em; color: var(--card-soft); }
 .roadping-card .rp-card-registration { display: block; font-family: Anton, 'Arial Narrow', sans-serif; font-size: clamp(22px, 7.6cqi, 40px); font-weight: 400; line-height: 1.12; letter-spacing: .015em; color: var(--card-ink); margin: 9px 0 10px; overflow-wrap: anywhere; }
@@ -67,6 +69,11 @@
 .roadping-card .rp-card-owner > span:last-child { max-width: 45%; text-transform: uppercase; font-size: .8em; letter-spacing: .08em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .roadping-card .rp-card-bottom { display: flex; justify-content: space-between; gap: 12px; margin: 0 -24px; padding: 14px 24px; border-top: 1px solid var(--card-line); background: #0000000b; font-size: clamp(7px, 1.9cqi, 9px); font-weight: 600; letter-spacing: .09em; }
 .roadping-card .rp-card-bottom > span:last-child { display: flex; align-items: center; gap: 6px; color: var(--card-soft); }
+.roadping-card.layout-qr_focus .rp-card-main { grid-template-columns: minmax(0, .9fr) minmax(140px, 44%); }
+.roadping-card.layout-qr_focus .rp-card-qr { padding: 2px; }
+.roadping-card.layout-minimal::after { display: none; }
+.roadping-card.layout-minimal .rp-card-label, .roadping-card.layout-minimal .rp-card-owner > span:last-child { display: none; }
+.roadping-card.layout-minimal .rp-card-main { margin-top: 22px; }
 @container (max-width: 320px) {
   .roadping-card .rp-card-main { margin: 23px 0 18px; gap: 12px; }
   .roadping-card .rp-card-owner { padding-bottom: 14px; }

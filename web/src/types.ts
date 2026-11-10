@@ -25,6 +25,7 @@ export interface Vehicle {
   vehicle_type: string
   nickname: string
   card_theme: string
+  card_layout: 'balanced' | 'qr_focus' | 'minimal'
   card_fulfillment: 'undecided' | 'self_print' | 'hich_print'
   tracking_enabled: boolean
   is_active: boolean
@@ -74,6 +75,7 @@ export interface TrackerDevice {
   last_accuracy_m: number | null
   last_battery_percent: number | null
   last_seen_at: string | null
+  display_mode: 'journey' | 'speed' | 'clock' | 'map'
   vehicles?: Pick<Vehicle, 'registration_number' | 'nickname' | 'make' | 'model'>
 }
 

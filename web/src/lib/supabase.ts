@@ -22,18 +22,6 @@ export const publicAppUrl = (
   (import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) || window.location.origin
 ).replace(/\/$/, '')
 
-export async function instantEmailSignupEnabled() {
-  if (!supabaseUrl || !supabaseKey) return false
-
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
-    headers: { apikey: supabaseKey },
-  })
-  if (!response.ok) throw new Error('Account registration is temporarily unavailable. Please try again shortly.')
-
-  const settings = await response.json() as { mailer_autoconfirm?: boolean }
-  return settings.mailer_autoconfirm === true
-}
-
 export function vehiclePublicUrl(token: string) {
   return `${publicAppUrl}/#/v/${token}`
 }
@@ -45,14 +33,20 @@ export function humanError(error: unknown) {
       ? String(error.message)
       : ''
   if (/email rate limit exceeded|over_email_send_rate_limit/i.test(message)) {
-    return 'Account registration is temporarily unavailable. RoadPing signup does not use an email OTP.'
+    return 'Too many account attempts were made recently. Please wait a moment and try again.'
   }
   if (message) return message
   return 'Something went wrong. Please try again.'
 }
 
 export function formatRegistration(value: string) {
-  return value.toUpperCase().replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-')
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z0-9 -]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/-+/g, '-')
+    .replace(/\s*-\s*/g, '-')
+    .slice(0, 18)
 }
 
 export function maskPhone(phone: string) {

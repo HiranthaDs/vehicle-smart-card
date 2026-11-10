@@ -9,7 +9,7 @@ interface VehicleCardProps {
   vehicle: Pick<
     Vehicle,
     'public_token' | 'registration_number' | 'make' | 'model' | 'color' | 'card_theme' | 'nickname'
-  > & Partial<Pick<Vehicle, 'is_active'>>
+  > & Partial<Pick<Vehicle, 'is_active' | 'card_layout'>>
   ownerName?: string
   demo?: boolean
 }
@@ -26,8 +26,8 @@ export const VehicleCard = forwardRef<HTMLDivElement, VehicleCardProps>(function
     setQr('')
     setQrError(false)
     QRCode.toDataURL(vehiclePublicUrl(vehicle.public_token), {
-      width: 720,
-      margin: 4,
+      width: 900,
+      margin: 2,
       color: { dark: '#080808', light: '#ffffff' },
       errorCorrectionLevel: 'H',
     }).then((value) => { if (!cancelled) setQr(value) })
@@ -36,7 +36,7 @@ export const VehicleCard = forwardRef<HTMLDivElement, VehicleCardProps>(function
   }, [vehicle.public_token])
 
   return (
-    <div ref={ref} className={`vehicle-card roadping-card theme-${vehicle.card_theme || 'midnight'}`}>
+    <div ref={ref} className={`vehicle-card roadping-card theme-${vehicle.card_theme || 'midnight'} layout-${vehicle.card_layout || 'balanced'}`}>
       <div className="rp-card-top">
         <span className="rp-card-brand">ROADPING<span aria-hidden="true">✳</span></span>
         <span className={`rp-card-status${vehicle.is_active === false ? ' paused' : ''}`}><i />{demo ? 'SAMPLE CARD' : vehicle.is_active === false ? 'PAUSED' : 'SMART VEHICLE ID'}</span>
@@ -44,7 +44,7 @@ export const VehicleCard = forwardRef<HTMLDivElement, VehicleCardProps>(function
       <div className="rp-card-main">
         <div className="rp-card-identity">
           <span className="rp-card-label">ONE VEHICLE. ONE CONNECTION.</span>
-          <strong className="rp-card-registration">{vehicle.registration_number || 'WP CAB-1234'}</strong>
+          <strong className="rp-card-registration">{vehicle.registration_number || 'CAB-1234'}</strong>
           <p>{[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Your vehicle'}{vehicle.color && <span>{vehicle.color}</span>}</p>
         </div>
         <div className="rp-card-qr-block">

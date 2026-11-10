@@ -32,27 +32,9 @@ public class SupabaseApi {
         return requestObject("POST", "/auth/v1/signup", null, body, null);
     }
 
-    public boolean instantEmailSignupEnabled() throws Exception {
-        return requestObject("GET", "/auth/v1/settings", null, null, null)
-                .optBoolean("mailer_autoconfirm", false);
-    }
-
     public JSONObject refresh(String refreshToken) throws Exception {
         JSONObject body = new JSONObject().put("refresh_token", refreshToken);
         return requestObject("POST", "/auth/v1/token?grant_type=refresh_token", null, body, null);
-    }
-
-    public void sendRecoveryOtp(String email) throws Exception {
-        requestText("POST", "/auth/v1/recover", null, new JSONObject().put("email", email), null);
-    }
-
-    public JSONObject verifyRecoveryOtp(String email, String otp) throws Exception {
-        JSONObject body = new JSONObject().put("email", email).put("token", otp).put("type", "recovery");
-        return requestObject("POST", "/auth/v1/verify", null, body, null);
-    }
-
-    public void updatePassword(String token, String password) throws Exception {
-        requestText("PUT", "/auth/v1/user", token, new JSONObject().put("password", password), null);
     }
 
     public List<Models.Vehicle> vehicles(String token) throws Exception {
@@ -76,6 +58,13 @@ public class SupabaseApi {
         return result;
     }
 
+    public List<Models.TrackerDevice> trackerDevices(String token) throws Exception {
+        JSONArray data = requestArray("GET", "/rest/v1/tracker_devices?select=*,vehicles(registration_number,nickname,make,model)&order=last_seen_at.desc", token, null, null);
+        List<Models.TrackerDevice> result = new ArrayList<>();
+        for (int i = 0; i < data.length(); i++) result.add(Models.TrackerDevice.fromJson(data.getJSONObject(i)));
+        return result;
+    }
+
     public JSONObject registerTracker(String token, String vehicleId, String installationId, String deviceName,
                                       String locationPermission, boolean backgroundPermission, boolean notificationPermission,
                                       boolean batteryIgnored, boolean locationEnabled, boolean networkConnected) throws Exception {
@@ -91,6 +80,15 @@ public class SupabaseApi {
     public JSONObject startTrackingSession(String token, String deviceId, String reason) throws Exception {
         return requestObject("POST", "/rest/v1/rpc/start_tracking_session", token,
                 new JSONObject().put("p_tracker_device_id", deviceId).put("p_start_reason", reason), null);
+    }
+
+    public JSONObject trackerDevice(String token, String deviceId) throws Exception {
+        JSONArray data = requestArray("GET", "/rest/v1/tracker_devices?select=*&id=eq." + deviceId + "&limit=1", token, null, null);
+        return data.length() == 0 ? new JSONObject() : data.getJSONObject(0);
+    }
+
+    public void updateTrackerDisplayMode(String token, String deviceId, String mode) throws Exception {
+        requestText("PATCH", "/rest/v1/tracker_devices?id=eq." + deviceId, token, new JSONObject().put("display_mode", mode), "return=minimal");
     }
 
     public JSONObject ingestLocations(String token, String sessionId, JSONArray points) throws Exception {

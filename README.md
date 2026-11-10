@@ -54,11 +54,11 @@ flowchart TD
 ### Owner flow
 
 1. Create an account and set owner, emergency contact, social link, and phone privacy details.
-2. Add a vehicle with its registration number, type, make, model, colour, year, nickname, and card theme.
-3. Preview the generated smart card, download a high-resolution PNG, or order a printed card for **LKR 1,990**.
-4. Use the dashboard to manage vehicles, see incoming reports, change alert status, and control whether a card is active.
-5. Sign the same native Android app into a phone or compatible full-Android head unit, configure Vehicle Player Mode, and choose the tracked vehicle.
-6. Review the vehicle's latest position and completed journeys from the web or Android owner interface.
+2. Add a vehicle using the main Sri Lankan plate number, such as `CAB-2048` or `64-1234`; a province prefix is not required.
+3. Choose from six card themes and three layouts, including a large-QR layout, then download a high-resolution PNG or order a printed card for **LKR 1,990**.
+4. Use the dashboard to open every vehicle as a card, view its full details, handle reports, and pause or resume its public card.
+5. On Android, choose **Owner Phone** or **Android Car Player** before signing in. Both devices use the same owner account.
+6. From the phone or web owner view, watch live location and journeys and remotely choose the car player's Journey, Speed, Clock, or Map-side display.
 
 ### Scanner flow
 
@@ -81,11 +81,11 @@ flowchart TD
 
 | Area | Capabilities |
 | --- | --- |
-| Vehicle identity | One owner to many vehicles, unique random public token, QR card, four visual themes, pause/resume control |
+| Vehicle identity | One owner to many vehicles, flexible Sri Lankan plate formats, random public token, six themes, three QR layouts, pause/resume control |
 | Private contact | Hidden, masked, or visible phone mode; structured alerts; optional message, contact, and location |
-| Owner experience | Responsive dashboard, PWA installation, vehicle management, alert inbox, realtime updates, profile and privacy controls |
+| Owner experience | Responsive dashboard, all-vehicle garage, dedicated details pages, alert inbox, realtime updates, profile and privacy controls |
 | Card fulfilment | High-resolution PNG download, self-print option, or Hich print-order and delivery workflow |
-| Android | Native Java app, Owner Mode, Vehicle Player Mode, on-device QR generation, notifications, foreground tracking, boot recovery |
+| Android | Native Java app, startup role choice, Owner Phone controls, car-player driving displays, large QR generation, foreground tracking, boot recovery |
 | Journey intelligence | Live location, route map, distance, duration, maximum speed, point count, and trip history |
 | Backend | Supabase Auth, Postgres, Row Level Security, RPC validation, Realtime, Edge Functions, web push, and maintenance jobs |
 
@@ -120,7 +120,7 @@ flowchart TD
 
 ### 1. Configure Supabase
 
-Install the Supabase CLI, link the project, and apply both migrations:
+Install the Supabase CLI, link the project, and apply every checked-in migration in order:
 
 ```powershell
 supabase link --project-ref avixsqfvfonlioslhxif
@@ -129,7 +129,7 @@ supabase config diff --remote=avixsqfvfonlioslhxif
 supabase config push --remote=avixsqfvfonlioslhxif --yes
 ```
 
-The checked-in Auth configuration disables registration confirmation, so email/password signup creates a session immediately without sending an OTP. Then follow [`supabase/README.md`](supabase/README.md) to configure password recovery, web push, the incident webhook, and stale-tracker maintenance.
+The checked-in Auth configuration disables registration confirmation, so email/password signup creates a session immediately without another verification step. Then follow [`supabase/README.md`](supabase/README.md) to configure web push, the incident webhook, and stale-tracker maintenance.
 
 ### 2. Run the web application
 
@@ -167,7 +167,7 @@ The APK is generated at `android-app/app/build/outputs/apk/debug/app-debug.apk`.
 ## Production checklist
 
 - Rotate the previously exposed Supabase service key and keep all service-role values outside client applications.
-- Configure production SMTP, allowed redirect URLs, VAPID credentials, Edge Function secrets, and the database webhook.
+- Configure VAPID credentials, Edge Function secrets, and the database webhook.
 - Schedule `tracking-maintenance` once per minute so trips close after a vehicle player loses power or connectivity.
 - Create and back up a release signing key before distributing a production APK.
 - Publish a privacy policy and complete the required Google Play background-location review.

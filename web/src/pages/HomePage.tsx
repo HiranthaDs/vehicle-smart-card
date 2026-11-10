@@ -21,7 +21,7 @@ import { VehicleCard } from '../components/VehicleCard'
 
 const demoVehicle = {
   public_token: 'demo-roadping',
-  registration_number: 'WP CAB-2048',
+  registration_number: 'CAB-2048',
   make: 'Toyota',
   model: 'Corolla',
   color: 'Pearl white',
@@ -29,9 +29,16 @@ const demoVehicle = {
   nickname: 'Daily ride',
 }
 
+const trackingScenes = [
+  { label: 'CITY COMMUTE', registration: 'CAB-2048', status: 'LIVE · 4s', location: 'Baseline Road, Colombo 08', destination: 'Colombo 07', speed: '42', distance: '18.6', duration: '34', start: '08:42', now: '09:16', note: 'Moving smoothly · GPS accuracy 6 m' },
+  { label: 'ARRIVED SAFELY', registration: 'CAB-2048', status: 'PARKED · NOW', location: 'Independence Avenue, Colombo 07', destination: 'Journey complete', speed: '0', distance: '21.2', duration: '41', start: '08:42', now: '09:23', note: 'Ignition stopped · Trip saved automatically' },
+  { label: 'EVENING RETURN', registration: 'CAB-2048', status: 'LIVE · 2s', location: 'Galle Road, Bambalapitiya', destination: 'Heading south', speed: '31', distance: '7.4', duration: '19', start: '18:04', now: '18:23', note: 'Mobile data connected · Battery 82%' },
+]
+
 export function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [installEvent, setInstallEvent] = useState<Event | null>(null)
+  const [trackingSlide, setTrackingSlide] = useState(0)
   const menuRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -56,6 +63,12 @@ export function HomePage() {
     }
     window.addEventListener('beforeinstallprompt', onInstall)
     return () => window.removeEventListener('beforeinstallprompt', onInstall)
+  }, [])
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = window.setInterval(() => setTrackingSlide((current) => (current + 1) % trackingScenes.length), 6500)
+    return () => window.clearInterval(timer)
   }, [])
 
   async function installPwa() {
@@ -99,7 +112,7 @@ export function HomePage() {
           <div className="hich-hero-intro"><span className="hich-label">SMALL CARD. BIG POSSIBILITIES.</span><h2>A BETTER WAY<br />TO BE <em>REACHED.</em></h2><p>A private QR identity, live location and your journey history. Everything that matters about your vehicle, together in one place.</p><Link to="/v/demo-roadping" className="hich-demo-link">Try a scan. See the difference. <ArrowUpRight /></Link><div className="showcase-trust"><ShieldCheck size={16} /> Your phone number stays private.</div></div>
           <div className="hich-hero-stage">
             <div className="hich-orbit" aria-hidden="true"><i /><i /><i /></div>
-            <span className="stage-edition">ROADPING / SMART ID — 01</span>
+            <span className="stage-edition">YOUR PRIVATE VEHICLE CARD</span>
             <div className="hich-card-float"><VehicleCard vehicle={demoVehicle} ownerName="Nimal P." demo /></div>
             <div className="hich-location-chip"><ShieldCheck /><span><strong>LOOKING OUT FOR YOU.</strong><small>ONE SCAN. A PRIVATE CONNECTION.</small></span></div>
             <div className="hich-stage-foot"><span>QR CONTACT</span><i /><span>LIVE LOCATION</span><i /><span>TRIP HISTORY</span></div>
@@ -124,10 +137,12 @@ export function HomePage() {
           <div className="hich-section-head light"><p><span>02</span> ONE APP. TWO PURPOSES.</p><h2>THE CAR REPORTS.<br /><em>YOU STAY INFORMED.</em></h2></div>
           <div className="hich-tracking-grid">
             <div className="hich-device-card car-mode"><div className="device-card-top"><span>VEHICLE PLAYER</span><Radio /></div><div className="device-screen"><div className="device-logo">ROADPING<i>✳</i></div><p>SETUP COMPLETE</p><h3>TRACKING<br />THE JOURNEY.</h3><div className="permission-list"><span><Check /> Precise location</span><span><Check /> Background service</span><span><Check /> Network sync</span><span><Check /> Offline queue</span></div><button>TRACKING ACTIVE <i /></button></div></div>
-            <div className="hich-route-board">
-              <div className="route-board-top"><span>WP CAB-2048</span><span><i /> LIVE · 4s</span></div>
-              <div className="route-map-art"><svg viewBox="0 0 600 430" fill="none"><path d="M-30 345C68 291 110 359 181 282C240 218 260 279 329 192C395 110 458 165 632 21" /><path d="M-20 378C83 327 142 391 211 317C278 245 283 307 361 217C431 137 494 199 639 57" /><circle cx="329" cy="192" r="12" /><circle cx="329" cy="192" r="28" /></svg><span className="map-start">START<br /><b>08:42</b></span><span className="map-now">NOW<br /><b>09:16</b></span></div>
-              <div className="route-metrics"><div><small>SPEED</small><strong>42</strong><span>KM/H</span></div><div><small>DISTANCE</small><strong>18.6</strong><span>KM</span></div><div><small>DURATION</small><strong>34</strong><span>MIN</span></div></div>
+            <div className="hich-route-board" aria-live="polite">
+              <div className="route-board-top"><span>{trackingScenes[trackingSlide].registration}</span><span><i /> {trackingScenes[trackingSlide].status}</span></div>
+              <div className="route-cinematic-head"><small>{trackingScenes[trackingSlide].label}</small><strong>{trackingScenes[trackingSlide].location}</strong><span>{trackingScenes[trackingSlide].note}</span></div>
+              <div className={`route-map-art scene-${trackingSlide}`}><svg viewBox="0 0 600 430" fill="none"><path d="M-30 345C68 291 110 359 181 282C240 218 260 279 329 192C395 110 458 165 632 21" /><path d="M-20 378C83 327 142 391 211 317C278 245 283 307 361 217C431 137 494 199 639 57" /><circle cx="329" cy="192" r="12" /><circle cx="329" cy="192" r="28" /></svg><span className="map-start">START<br /><b>{trackingScenes[trackingSlide].start}</b></span><span className="map-now">NOW<br /><b>{trackingScenes[trackingSlide].now}</b></span><div className="route-destination"><LocateFixed /><span><small>NEXT</small><strong>{trackingScenes[trackingSlide].destination}</strong></span></div></div>
+              <div className="route-metrics"><div><small>SPEED</small><strong>{trackingScenes[trackingSlide].speed}</strong><span>KM/H</span></div><div><small>DISTANCE</small><strong>{trackingScenes[trackingSlide].distance}</strong><span>KM</span></div><div><small>DURATION</small><strong>{trackingScenes[trackingSlide].duration}</strong><span>MIN</span></div></div>
+              <div className="route-slide-controls" aria-label="Tracking preview scenes">{trackingScenes.map((scene, index) => <button type="button" key={scene.label} className={trackingSlide === index ? 'active' : ''} onClick={() => setTrackingSlide(index)} aria-label={`Show ${scene.label.toLowerCase()}`}><i /><span>{scene.label}</span></button>)}</div>
             </div>
             <div className="hich-tracking-copy"><p className="hich-label">BUILT FOR ANDROID HEAD UNITS</p><h3>Setup once.<br />Start with the vehicle.</h3><p>Install the same Android app on an aftermarket Android car player. Choose <b>Vehicle Player Mode</b>, connect it to a vehicle and approve the guided permissions. The foreground tracking service keeps a visible system notification, batches points safely, and continues through screen-off conditions.</p><ul><li><Check /> Adaptive GPS accuracy and speed capture</li><li><Check /> Offline queue when mobile data disappears</li><li><Check /> Automatic stale-trip closure after power loss</li><li><Check /> Owner-only realtime data with RLS</li></ul><Link to="/login">Open tracking dashboard <ArrowUpRight /></Link></div>
           </div>
@@ -149,7 +164,7 @@ export function HomePage() {
         <section id="app" className="hich-section hich-app-section">
           <div className="hich-section-head"><p><span>04</span> BUILT FOR THE SCREEN YOU HAVE</p><h2>MOBILE. WEB.<br /><em>VEHICLE PLAYER.</em></h2></div>
           <div className="hich-app-grid">
-            <div className="hich-app-phone"><div className="app-phone-header"><b>ROADPING✳</b><span>OWNER</span></div><p>GOOD MORNING</p><h3>YOUR GARAGE.</h3><div className="app-live-vehicle"><i /><div><small>LIVE VEHICLE</small><strong>WP CAB-2048</strong><span>42 km/h · Colombo 07</span></div><LocateFixed /></div><div className="app-mini-stats"><span><b>2</b>VEHICLES</span><span><b>18</b>TRIPS</span><span><b>0</b>ALERTS</span></div></div>
+            <div className="hich-app-phone"><div className="app-phone-header"><b>ROADPING✳</b><span>OWNER</span></div><p>GOOD MORNING</p><h3>YOUR GARAGE.</h3><div className="app-live-vehicle"><i /><div><small>LIVE VEHICLE</small><strong>CAB-2048</strong><span>42 km/h · Colombo 07</span></div><LocateFixed /></div><div className="app-mini-stats"><span><b>2</b>VEHICLES</span><span><b>18</b>TRIPS</span><span><b>0</b>ALERTS</span></div></div>
             <div className="hich-app-copy"><p className="hich-label">ROADPING FOR ANDROID</p><h3>One installation.<br />Choose the role.</h3><p>Owner Mode is designed for your phone. Vehicle Player Mode turns a compatible aftermarket Android head unit into a consent-led tracker for one selected vehicle.</p><div className="hich-app-actions"><a href="/downloads/roadping.apk" download><Download /> DOWNLOAD APK <ArrowUpRight /></a>{installEvent && <button onClick={installPwa}><Smartphone /> INSTALL WEB APP <ArrowUpRight /></button>}</div><small>ANDROID 8.0+ · DIRECT APK · LOCATION FOREGROUND SERVICE</small></div>
           </div>
         </section>

@@ -84,7 +84,7 @@ body { background: var(--paper); -webkit-font-smoothing: antialiased; }
 
 .hich-tracking-section { background: var(--ink); color: white; }
 .hich-tracking-grid { display: grid; grid-template-columns: .58fr 1fr .72fr; gap: 2vw; align-items: center; }
-.hich-device-card { border: 1px solid #3a3a3a; background: #151515; padding: 10px; transform: rotate(-3deg); }.device-card-top { display: flex; justify-content: space-between; padding: 8px 8px 16px; color: #aaa; font-size: 8px; letter-spacing: .12em; }.device-card-top svg { width: 15px; color: var(--teal); }.device-screen { min-height: 460px; background: var(--blue); padding: 24px; display: flex; flex-direction: column; }.device-logo { font-family: Anton, sans-serif; font-size: 21px; }.device-logo i { color: var(--teal); font-family: Inter; font-style: normal; font-size: 10px; }.device-screen > p { margin: 80px 0 6px; font-size: 8px; letter-spacing: .12em; }.device-screen h3 { font-family: Anton, sans-serif; font-size: 42px; line-height: .92; font-weight: 400; margin-bottom: 25px; }.permission-list { display: grid; gap: 9px; margin-bottom: auto; }.permission-list span { display: flex; align-items: center; gap: 8px; font-size: 9px; }.permission-list svg { width: 14px; color: var(--teal); }.device-screen button { min-height: 48px; border: 1px solid rgba(255,255,255,.4); color: white; background: transparent; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 9px; font-weight: 800; }.device-screen button i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.hich-device-card { border: 1px solid #3a3a3a; background: #151515; padding: 10px; transform: none; }.device-card-top { display: flex; justify-content: space-between; padding: 8px 8px 16px; color: #aaa; font-size: 8px; letter-spacing: .12em; }.device-card-top svg { width: 15px; color: var(--teal); }.device-screen { min-height: 460px; background: var(--blue); padding: 24px; display: flex; flex-direction: column; }.device-logo { font-family: Anton, sans-serif; font-size: 21px; }.device-logo i { color: var(--teal); font-family: Inter; font-style: normal; font-size: 10px; }.device-screen > p { margin: 80px 0 6px; font-size: 8px; letter-spacing: .12em; }.device-screen h3 { font-family: Anton, sans-serif; font-size: 42px; line-height: .92; font-weight: 400; margin-bottom: 25px; }.permission-list { display: grid; gap: 9px; margin-bottom: auto; }.permission-list span { display: flex; align-items: center; gap: 8px; font-size: 9px; }.permission-list svg { width: 14px; color: var(--teal); }.device-screen button { min-height: 48px; border: 1px solid rgba(255,255,255,.4); color: white; background: transparent; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 9px; font-weight: 800; }.device-screen button i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
 .hich-route-board { background: var(--paper); color: var(--ink); }.route-board-top { height: 55px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 800; }.route-board-top span:last-child { display: flex; align-items: center; gap: 6px; color: var(--blue); }.route-board-top i { width: 7px; height: 7px; background: var(--teal); border-radius: 50%; }.route-map-art { height: 360px; position: relative; overflow: hidden; background-color: #e9e9e4; background-image: linear-gradient(#d6d6d1 1px, transparent 1px), linear-gradient(90deg,#d6d6d1 1px,transparent 1px); background-size: 36px 36px; }.route-map-art svg { width: 100%; height: 100%; }.route-map-art path { stroke: var(--blue); stroke-width: 5; }.route-map-art path:nth-child(2) { stroke: #b6b6b0; stroke-width: 1; }.route-map-art circle:first-of-type { fill: var(--pink); }.route-map-art circle:last-of-type { stroke: var(--pink); fill: none; opacity: .4; }.map-start, .map-now { position: absolute; padding: 8px 10px; background: var(--ink); color: white; font-size: 7px; }.map-start { left: 12%; bottom: 15%; }.map-now { right: 15%; top: 19%; background: var(--pink); }.map-start b, .map-now b { font-size: 10px; }
 .route-metrics { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid var(--line); }.route-metrics > div { min-height: 115px; display: grid; grid-template-columns: 1fr auto; align-content: center; padding: 15px; border-right: 1px solid var(--line); }.route-metrics > div:last-child { border-right: 0; }.route-metrics small { grid-column: 1/-1; font-size: 7px; letter-spacing: .12em; }.route-metrics strong { font-family: Anton, sans-serif; font-size: 38px; font-weight: 400; }.route-metrics span { align-self: end; padding-bottom: 8px; color: var(--muted); font-size: 7px; }
 .hich-tracking-copy { padding-left: 2vw; }.hich-tracking-copy .hich-label { color: var(--teal); }.hich-tracking-copy h3 { font-size: 35px; line-height: 1.1; margin: 22px 0; }.hich-tracking-copy > p:not(.hich-label) { color: #aaa; line-height: 1.7; font-size: 13px; }.hich-tracking-copy ul { list-style: none; padding: 0; display: grid; gap: 11px; margin: 25px 0; }.hich-tracking-copy li { display: flex; align-items: center; gap: 8px; color: #ddd; font-size: 11px; }.hich-tracking-copy li svg { width: 14px; color: var(--teal); }.hich-tracking-copy > a { color: white; }
@@ -180,11 +180,33 @@ button svg, a svg { flex-shrink: 0; }
 .hich-footer > div > p, .hich-footer-bottom { font-size: 10px; }
 .marketing-dock { display: none; }
 @media (hover: hover) and (pointer: fine) {
-  .hich-pill:hover { background: var(--ink); color: white; transform: translateY(-2px); }
-  .hich-card-float { transition: transform .4s cubic-bezier(.2,.8,.2,1); }
-  .hich-hero-stage:hover .hich-card-float { transform: rotate(-2deg) translateY(-5px); }
+  .hich-pill:hover { background: var(--ink); color: white; }
   .hich-demo-link:hover { color: var(--blue); }
 }
+
+/* Calm interactions and a cinematic, readable tracking story. */
+.hich-card-float { transform: none; }
+.route-cinematic-head { min-height: 92px; display: flex; flex-direction: column; justify-content: center; padding: 15px 18px; border-bottom: 1px solid var(--line); background: #fff; }
+.route-cinematic-head small { color: var(--blue); font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+.route-cinematic-head strong { margin-top: 7px; font-size: 16px; letter-spacing: -.02em; }
+.route-cinematic-head span { margin-top: 5px; color: var(--muted); font-size: 9px; }
+.route-map-art { height: 300px; }
+.route-map-art path:first-child { stroke-dasharray: 18 8; animation: route-flow 7s linear infinite; }
+.route-map-art.scene-1 { background-color: #e2e8df; }
+.route-map-art.scene-2 { background-color: #dedee9; }
+.route-destination { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px; max-width: 190px; padding: 9px 12px; border: 1px solid #ffffff73; color: #fff; background: #080808e8; box-shadow: 0 12px 30px #00000024; }
+.route-destination > svg { width: 20px; color: var(--teal); }
+.route-destination small, .route-destination strong { display: block; }
+.route-destination small { color: #999; font-size: 6px; letter-spacing: .12em; }
+.route-destination strong { margin-top: 2px; font-size: 9px; }
+.route-slide-controls { display: grid; grid-template-columns: repeat(3, 1fr); min-height: 58px; border-top: 1px solid var(--line); background: #fff; }
+.route-slide-controls button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border-right: 1px solid var(--line); color: #858585; background: transparent; font-size: 7px; font-weight: 800; letter-spacing: .06em; }
+.route-slide-controls button:last-child { border-right: 0; }
+.route-slide-controls button i { width: 6px; height: 6px; border-radius: 50%; background: #bbb; }
+.route-slide-controls button.active { color: var(--ink); background: #f4f4f0; }
+.route-slide-controls button.active i { background: var(--pink); box-shadow: 0 0 0 4px #ff34541a; }
+@keyframes route-flow { to { stroke-dashoffset: -130; } }
+@media (prefers-reduced-motion: reduce) { .route-map-art path:first-child { animation: none; } }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

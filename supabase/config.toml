@@ -2,7 +2,16 @@
 
 project_id = "vehicle_smart_card"
 
-# RoadPing uses email and password for identity, but registration must create a
-# session immediately. OTP email remains reserved for password recovery.
+# RoadPing uses direct email/password registration and must create a session
+# immediately, without a separate confirmation step.
 [auth.email]
 enable_confirmations = false
+
+# RoadPing deliberately has no SMS-OTP or authenticator-code flow.
+[auth.sms]
+enabled = false
+enable_confirmations = false
+
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false

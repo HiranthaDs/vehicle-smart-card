@@ -18,6 +18,8 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
@@ -50,6 +52,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -62,9 +66,15 @@ public class MainActivity extends Activity {
     private List<Models.Vehicle> vehicles = new ArrayList<>();
     private List<Models.Alert> alerts = new ArrayList<>();
     private List<Models.Trip> trips = new ArrayList<>();
+    private List<Models.TrackerDevice> trackerDevices = new ArrayList<>();
     private JSONObject profile = new JSONObject();
     private Models.Vehicle pendingTrackerVehicle;
     private int currentTab = 0;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private Runnable playerTicker;
+    private TextView playerClock, playerDate, playerSpeed, playerLocation, playerAccuracy;
+    private PlayerMapView playerMap;
+    private long lastPlayerModeSync;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,16 +85,143 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false);
         session = new SessionManager(this);
         NotificationHelper.createChannel(this);
-        if (session.isSignedIn()) showApp(getIntent().getBooleanExtra("open_alerts", false) ? 3 : 0);
-        else showLogin(false);
+        if (session.isSignedIn()) {
+            if (getIntent().getBooleanExtra("open_alerts", false)) { session.setAppRole("owner"); showApp(3); }
+            else showModeChooser();
+        }
+        else showModeChooser();
     }
 
     @Override protected void onDestroy() {
+        stopPlayerTicker();
         executor.shutdownNow();
         super.onDestroy();
     }
 
+    private void showModeChooser() {
+        stopPlayerTicker();
+        bottomNav = null;
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        LinearLayout root = Ui.vertical(this, 0); root.setBackgroundColor(Ui.SURFACE);
+        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setVerticalScrollBarEnabled(false);
+        LinearLayout page = Ui.vertical(this, 24); page.setPadding(Ui.dp(this, 24), Ui.dp(this, 34), Ui.dp(this, 24), Ui.dp(this, 34));
+        TextView brand = Ui.title(this, "ROADPING."); brand.setTextSize(27); page.addView(brand);
+        TextView eyebrow = Ui.eyebrow(this, "ONE ACCOUNT / TWO PURPOSES"); Ui.margin(eyebrow, 0, 46, 0, 10); page.addView(eyebrow);
+        TextView title = Ui.title(this, "WHERE IS THIS\nAPP RUNNING?"); title.setTextSize(43); page.addView(title);
+        TextView copy = Ui.text(this, "Choose the screen in front of you. Your owner phone and vehicle player use the same secure RoadPing account.", 14, Ui.MUTED, false); Ui.margin(copy, 0, 13, 0, 28); page.addView(copy);
+
+        LinearLayout owner = modeChoice("person", "OWNER PHONE", "Manage every vehicle, open QR cards, receive alerts and watch the car player from anywhere.", Ui.BLUE);
+        owner.setOnClickListener(v -> { session.setAppRole("owner"); if (session.isSignedIn()) showApp(0); else showLogin(false); }); page.addView(owner);
+        LinearLayout player = modeChoice("location", "ANDROID CAR PLAYER", "Connect this head unit to one vehicle, record journeys and show a calm driving display.", Ui.NAVY);
+        Ui.margin(player, 0, 12, 0, 0); player.setOnClickListener(v -> { session.setAppRole("player"); if (!session.isSignedIn()) showLogin(false); else if (session.trackerConfigured()) showPlayerDisplay(); else showApp(2); }); page.addView(player);
+
+        TextView note = Ui.text(this, "You can switch modes at any time. Tracking is always visible and can always be stopped.", 11, Ui.MUTED, false); note.setGravity(Gravity.CENTER); Ui.margin(note, 10, 24, 10, 0); page.addView(note);
+        scroll.addView(page); root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1)); setRootContent(root);
+    }
+
+    private LinearLayout modeChoice(String iconName, String title, String description, int accent) {
+        LinearLayout card = Ui.card(this, 22); card.setMinimumHeight(Ui.dp(this, 170)); card.setGravity(Gravity.CENTER_VERTICAL); card.setFocusable(true); card.setClickable(true); card.setBackground(Ui.interactive(Ui.WHITE, 18, Ui.LINE, this));
+        LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView icon = Ui.icon(this, iconName, accent); icon.setPadding(Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12)); icon.setBackground(Ui.background(Color.rgb(238, 241, 255), 28, this));
+        top.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
+        TextView heading = Ui.title(this, title); heading.setTextSize(24); Ui.margin(heading, 16, 0, 0, 0); top.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView arrow = Ui.text(this, "→", 24, accent, true); top.addView(arrow); card.addView(top);
+        TextView detail = Ui.text(this, description, 13, Ui.MUTED, false); detail.setLineSpacing(0, 1.25f); Ui.margin(detail, 0, 19, 0, 0); card.addView(detail);
+        card.setContentDescription(title + ". " + description); return card;
+    }
+
+    private void showPlayerDisplay() {
+        stopPlayerTicker();
+        if (!session.trackerConfigured()) { showApp(2); return; }
+        session.setAppRole("player"); bottomNav = null;
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        LinearLayout root = Ui.vertical(this, 0); root.setBackgroundColor(Color.rgb(10, 11, 14));
+
+        LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL); top.setPadding(Ui.dp(this, 22), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 12));
+        LinearLayout identity = Ui.vertical(this, 0); TextView brand = Ui.title(this, "ROADPING."); brand.setTextColor(Ui.WHITE); brand.setTextSize(24); identity.addView(brand);
+        TextView role = Ui.text(this, "VEHICLE PLAYER  ·  " + session.trackingVehicleName(), 8, Ui.TEAL, true); role.setLetterSpacing(.11f); Ui.margin(role, 0, 5, 0, 0); identity.addView(role); top.addView(identity, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        Button owner = Ui.secondaryButton(this, "OWNER MODE"); owner.setMinHeight(Ui.dp(this, 42)); owner.setOnClickListener(v -> showModeChooser()); top.addView(owner); root.addView(top);
+
+        String mode = session.displayMode();
+        boolean mapMode = "map".equals(mode);
+        boolean sideBySide = mapMode && getResources().getDisplayMetrics().widthPixels > getResources().getDisplayMetrics().heightPixels;
+        LinearLayout display = new LinearLayout(this); display.setOrientation(sideBySide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL); display.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 12));
+        if (mapMode) {
+            playerMap = new PlayerMapView(this); display.addView(playerMap, sideBySide ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.6f) : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 310)));
+        } else playerMap = null;
+
+        LinearLayout readout = Ui.vertical(this, 22); readout.setGravity(Gravity.CENTER); readout.setBackground(Ui.background(Color.rgb(18, 20, 24), 18, this));
+        TextView status = Ui.text(this, session.trackingEnabled() ? "●  LIVE JOURNEY" : "PLAYER READY", 10, session.trackingEnabled() ? Ui.TEAL : Ui.PINK, true); status.setLetterSpacing(.12f); readout.addView(status);
+        playerClock = Ui.title(this, "--:--"); playerClock.setTextColor(Ui.WHITE); playerClock.setTextSize("clock".equals(mode) ? 96 : 46); playerClock.setGravity(Gravity.CENTER); Ui.margin(playerClock, 0, 18, 0, 0); readout.addView(playerClock);
+        playerDate = Ui.text(this, "", 13, Color.rgb(169, 173, 184), false); playerDate.setGravity(Gravity.CENTER); readout.addView(playerDate);
+        playerSpeed = Ui.title(this, "0"); playerSpeed.setTextColor(Ui.WHITE); playerSpeed.setTextSize("speed".equals(mode) ? 112 : mapMode ? 58 : 78); playerSpeed.setGravity(Gravity.CENTER); Ui.margin(playerSpeed, 0, "clock".equals(mode) ? 34 : 18, 0, 0); readout.addView(playerSpeed);
+        TextView speedUnit = Ui.text(this, "KM/H", 10, Ui.TEAL, true); speedUnit.setLetterSpacing(.16f); speedUnit.setGravity(Gravity.CENTER); readout.addView(speedUnit);
+        playerLocation = Ui.text(this, "Waiting for GPS location", 13, Ui.WHITE, true); playerLocation.setGravity(Gravity.CENTER); Ui.margin(playerLocation, 0, 28, 0, 4); readout.addView(playerLocation);
+        playerAccuracy = Ui.text(this, "Location will appear when tracking starts", 10, Color.rgb(145, 149, 160), false); playerAccuracy.setGravity(Gravity.CENTER); readout.addView(playerAccuracy);
+        LinearLayout.LayoutParams readoutParams = sideBySide ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, .85f) : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        if (sideBySide) readoutParams.setMargins(Ui.dp(this, 12), 0, 0, 0); else if (mapMode) readoutParams.setMargins(0, Ui.dp(this, 10), 0, 0);
+        display.addView(readout, readoutParams); root.addView(display, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+
+        LinearLayout modes = new LinearLayout(this); modes.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 10));
+        String[][] choices = {{"journey", "JOURNEY"}, {"speed", "SPEED"}, {"clock", "CLOCK"}, {"map", "MAP SIDE"}};
+        for (String[] choice : choices) {
+            Button button = choice[0].equals(mode) ? Ui.primaryButton(this, choice[1]) : Ui.secondaryButton(this, choice[1]);
+            if (choice[0].equals(mode)) button.setBackground(Ui.background(Ui.BLUE, 12, this));
+            button.setOnClickListener(v -> changePlayerDisplay(choice[0]));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1); params.setMargins(Ui.dp(this, 3), 0, Ui.dp(this, 3), 0); modes.addView(button, params);
+        }
+        Button tracking = session.trackingEnabled() ? Ui.secondaryButton(this, "STOP") : Ui.primaryButton(this, "START"); tracking.setOnClickListener(v -> togglePlayerTracking());
+        modes.addView(tracking, new LinearLayout.LayoutParams(Ui.dp(this, 92), Ui.dp(this, 48))); root.addView(modes);
+        setRootContent(root); startPlayerTicker(); syncPlayerDisplayMode();
+    }
+
+    private void changePlayerDisplay(String mode) {
+        if (mode.equals(session.displayMode())) return;
+        session.setDisplayMode(mode); showPlayerDisplay();
+        executor.execute(() -> { try { api.updateTrackerDisplayMode(session.accessToken(), session.trackerDeviceId(), mode); } catch (Exception ignored) {} });
+    }
+
+    private void togglePlayerTracking() {
+        Intent service = new Intent(this, TrackingForegroundService.class).setAction(session.trackingEnabled() ? TrackingForegroundService.ACTION_STOP : TrackingForegroundService.ACTION_START);
+        if (session.trackingEnabled()) startService(service); else startForegroundService(service);
+        session.setTrackingEnabled(!session.trackingEnabled()); toast(session.trackingEnabled() ? "Tracking started." : "Trip is being saved."); showPlayerDisplay();
+    }
+
+    private void startPlayerTicker() {
+        playerTicker = new Runnable() { @Override public void run() { renderPlayerValues(); uiHandler.postDelayed(this, 1000L); } };
+        uiHandler.post(playerTicker);
+    }
+
+    private void stopPlayerTicker() { if (playerTicker != null) uiHandler.removeCallbacks(playerTicker); playerTicker = null; }
+
+    private void renderPlayerValues() {
+        LocalDateTime now = LocalDateTime.now();
+        if (playerClock != null) playerClock.setText(now.format(DateTimeFormatter.ofPattern("HH:mm")));
+        if (playerDate != null) playerDate.setText(now.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())));
+        if (playerSpeed != null) playerSpeed.setText(String.valueOf(Math.round(session.lastSpeedMps() * 3.6f)));
+        boolean hasFix = !Double.isNaN(session.lastLatitude()) && !Double.isNaN(session.lastLongitude());
+        if (playerLocation != null) playerLocation.setText(hasFix ? String.format(Locale.ROOT, "%.5f, %.5f", session.lastLatitude(), session.lastLongitude()) : "Waiting for GPS location");
+        if (playerAccuracy != null) {
+            long age = session.lastLocationAt() == 0 ? 0 : Math.max(0, (System.currentTimeMillis() - session.lastLocationAt()) / 1000);
+            playerAccuracy.setText(hasFix ? "GPS ±" + Math.round(session.lastAccuracyM()) + " m  ·  updated " + age + "s ago" : "Start tracking to show the current location");
+        }
+        if (playerMap != null) playerMap.setLocation(session.lastLatitude(), session.lastLongitude(), session.lastBearing());
+        if (System.currentTimeMillis() - lastPlayerModeSync > 30000L) syncPlayerDisplayMode();
+    }
+
+    private void syncPlayerDisplayMode() {
+        if (!session.trackerConfigured() || System.currentTimeMillis() - lastPlayerModeSync < 5000L) return;
+        lastPlayerModeSync = System.currentTimeMillis();
+        executor.execute(() -> { try {
+            String remoteMode = api.trackerDevice(session.accessToken(), session.trackerDeviceId()).optString("display_mode", session.displayMode());
+            if (!remoteMode.equals(session.displayMode())) runOnUiThread(() -> { session.setDisplayMode(remoteMode); showPlayerDisplay(); });
+        } catch (Exception ignored) {} });
+    }
+
     private void showLogin(boolean signup) {
+        stopPlayerTicker();
         LinearLayout root = Ui.vertical(this, 0);
         root.setBackgroundColor(Ui.SURFACE);
         ScrollView scroll = new ScrollView(this);
@@ -106,7 +243,7 @@ public class MainActivity extends Activity {
         LinearLayout form = Ui.vertical(this, 0);
         form.setFocusableInTouchMode(true);
         TextView eyebrow = Ui.eyebrow(this, signup ? "01 / JOIN ROADPING" : "01 / YOUR OWNER SPACE"); Ui.margin(eyebrow, 0, 30, 0, 10); form.addView(eyebrow);
-        TextView title = Ui.title(this, signup ? "LET?S GET STARTED." : "WELCOME BACK."); title.setTextSize(31); form.addView(title);
+        TextView title = Ui.title(this, signup ? "LET'S GET STARTED." : "WELCOME BACK."); title.setTextSize(31); form.addView(title);
         TextView subtitle = Ui.text(this, signup ? "Your garage starts here. Add your vehicles after signing up." : "Your vehicles, smart cards and alerts. All together.", 14, Ui.MUTED, false); Ui.margin(subtitle, 0, 10, 0, 25); form.addView(subtitle);
         EditText name = Ui.input(this, "Your full name");
         EditText email = Ui.input(this, "you@example.com"); email.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS); email.setAutofillHints(View.AUTOFILL_HINT_EMAIL_ADDRESS);
@@ -115,8 +252,7 @@ public class MainActivity extends Activity {
         EditText password = Ui.passwordInput(this, "At least 8 characters"); password.setAutofillHints(signup ? "newPassword" : View.AUTOFILL_HINT_PASSWORD);
         if (signup) { addField(form, "FULL NAME", name); addField(form, "PHONE NUMBER", phone); addField(form, "EMERGENCY CONTACT", emergency); }
         addField(form, "EMAIL ADDRESS", email); addField(form, "PASSWORD", password);
-        Button submit = Ui.primaryButton(this, signup ? "Create my account  ?" : "Sign in  ?"); Ui.margin(submit, 0, 6, 0, 12); form.addView(submit);
-        if (!signup) { Button forgot = Ui.secondaryButton(this, "Forgot password?"); Ui.margin(forgot, 0, 0, 0, 12); form.addView(forgot); forgot.setOnClickListener(v -> showRecoveryEmailDialog()); }
+        Button submit = Ui.primaryButton(this, signup ? "Create my account  ->" : "Sign in  ->"); Ui.margin(submit, 0, 6, 0, 12); form.addView(submit);
         Button toggle = Ui.secondaryButton(this, signup ? "Already a member? Sign in" : "New here? Create an account"); form.addView(toggle);
         LinearLayout privacy = new LinearLayout(this); privacy.setGravity(Gravity.CENTER_VERTICAL);
         ImageView lock = Ui.icon(this, "shield", Ui.MUTED); privacy.addView(lock, new LinearLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18)));
@@ -132,21 +268,29 @@ public class MainActivity extends Activity {
             executor.execute(() -> {
                 try {
                     JSONObject response;
-                    if (signup) {
-                        if (!api.instantEmailSignupEnabled()) throw new Exception("Account registration is temporarily unavailable. RoadPing signup does not use an email OTP.");
-                        response = api.signUp(name.getText().toString().trim(), email.getText().toString().trim(), phone.getText().toString().trim(), emergency.getText().toString().trim(), password.getText().toString());
-                    } else response = api.signIn(email.getText().toString().trim(), password.getText().toString());
+                    if (signup) response = api.signUp(name.getText().toString().trim(), email.getText().toString().trim(), phone.getText().toString().trim(), emergency.getText().toString().trim(), password.getText().toString());
+                    else response = api.signIn(email.getText().toString().trim(), password.getText().toString());
                     String access = response.optString("access_token");
                     if (access.isEmpty()) throw new Exception("Your account could not be started immediately. RoadPing registration does not require email confirmation.");
                     JSONObject user = response.optJSONObject("user");
                     session.save(access, response.optString("refresh_token"), user == null ? "" : user.optString("id"), email.getText().toString().trim());
-                    runOnUiThread(() -> showApp(0));
-                } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); submit.setEnabled(true); submit.setText(signup ? "Create my account  ?" : "Sign in  ?"); }); }
+                    runOnUiThread(this::openSelectedRole);
+                } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); submit.setEnabled(true); submit.setText(signup ? "Create my account  ->" : "Sign in  ->"); }); }
             });
         });
     }
 
+    private void openSelectedRole() {
+        if ("player".equals(session.appRole())) {
+            if (session.trackerConfigured()) showPlayerDisplay(); else showApp(2);
+        } else if ("owner".equals(session.appRole())) showApp(0);
+        else showModeChooser();
+    }
+
     private void showApp(int startTab) {
+        stopPlayerTicker();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         currentTab = startTab;
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 80);
         scheduleAlertChecks();
@@ -183,6 +327,7 @@ public class MainActivity extends Activity {
         status.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 16), Ui.dp(this, 16)));
         TextView label = Ui.text(this, session.trackingEnabled() ? "Live" : "Owner", 11, Ui.INK, true);
         Ui.margin(label, 6, 0, 0, 0); status.addView(label); header.addView(status);
+        status.setContentDescription("Change device mode"); status.setFocusable(true); status.setOnClickListener(v -> showModeChooser());
         header.setMinimumHeight(Ui.dp(this, 76)); return header;
     }
 
@@ -223,6 +368,7 @@ public class MainActivity extends Activity {
                 vehicles = api.vehicles(session.accessToken());
                 alerts = api.alerts(session.accessToken());
                 trips = api.trips(session.accessToken());
+                trackerDevices = api.trackerDevices(session.accessToken());
                 profile = api.profile(session.accessToken(), session.userId());
                 session.setLastAlertCheck(System.currentTimeMillis());
                 runOnUiThread(this::renderCurrent);
@@ -288,10 +434,10 @@ public class MainActivity extends Activity {
         stats.addView(alertStat, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); page.addView(stats);
 
         sectionHeader(page, "02 / YOUR GARAGE", "MADE FOR YOUR DRIVE.", "Add vehicle", this::showAddVehicleDialog);
-        if (vehicles.isEmpty()) page.addView(emptyCard("YOUR FIRST CONNECTION.", "Add your vehicle and we?ll make it a smart card."));
+        if (vehicles.isEmpty()) page.addView(emptyCard("YOUR FIRST CONNECTION.", "Add your vehicle and we'll make it a smart card."));
         else for (Models.Vehicle vehicle : vehicles.subList(0, Math.min(2, vehicles.size()))) page.addView(vehicleCard(vehicle));
         if (vehicles.size() > 2) {
-            Button all = Ui.secondaryButton(this, "View all " + vehicles.size() + " vehicles  ?");
+            Button all = Ui.secondaryButton(this, "View all " + vehicles.size() + " vehicles  ->");
             all.setOnClickListener(v -> { currentTab = 1; buildBottomNav(); showVehicles(); }); page.addView(all);
         }
 
@@ -300,17 +446,17 @@ public class MainActivity extends Activity {
         TextView trackerEye = Ui.text(this, "03 / A LITTLE MORE CONNECTED", 9, Color.rgb(214,224,255), true); trackerEye.setLetterSpacing(.12f); tracker.addView(trackerEye);
         TextView trackerTitle = Ui.title(this, session.trackerConfigured() ? (session.trackingEnabled() ? "YOUR JOURNEY.\nLIVE." : "READY WHEN\nYOU ARE.") : "KNOW WHERE.\nWORRY LESS.");
         trackerTitle.setTextColor(Ui.WHITE); trackerTitle.setTextSize(36); Ui.margin(trackerTitle, 0, 17, 0, 12); tracker.addView(trackerTitle);
-        TextView trackerCopy = Ui.text(this, session.trackerConfigured() ? session.trackingVehicleName() + " ? Your location and journey history, together." : "Connect your vehicle?s Android player to keep your journeys in one place.", 13, Color.rgb(223,230,255), false); tracker.addView(trackerCopy);
-        Button trackerButton = Ui.primaryButton(this, session.trackerConfigured() ? "Open live tracking  ?" : "Set up vehicle player  ?"); Ui.margin(trackerButton, 0, 22, 0, 0);
+        TextView trackerCopy = Ui.text(this, session.trackerConfigured() ? session.trackingVehicleName() + " / Your location and journey history, together." : "Connect your vehicle's Android player to keep your journeys in one place.", 13, Color.rgb(223,230,255), false); tracker.addView(trackerCopy);
+        Button trackerButton = Ui.primaryButton(this, session.trackerConfigured() ? "Open live tracking  ->" : "Set up vehicle player  ->"); Ui.margin(trackerButton, 0, 22, 0, 0);
         trackerButton.setOnClickListener(v -> { currentTab = 2; buildBottomNav(); showTracking(); }); tracker.addView(trackerButton); page.addView(tracker);
 
         sectionHeader(page, "04 / RECENT ACTIVITY", "YOUR LATEST PINGS.", null, null);
-        if (alerts.isEmpty()) page.addView(emptyCard("ALL QUIET. ALL GOOD.", "When someone scans your card and sends a report, you?ll find it here."));
+        if (alerts.isEmpty()) page.addView(emptyCard("ALL QUIET. ALL GOOD.", "When someone scans your card and sends a report, you'll find it here."));
         else for (Models.Alert alert : alerts.subList(0, Math.min(3, alerts.size()))) page.addView(alertRow(alert));
 
         LinearLayout privacy = new LinearLayout(this); privacy.setGravity(Gravity.CENTER_VERTICAL); Ui.margin(privacy, 0, 24, 0, 0);
         privacy.addView(Ui.icon(this, "shield", Ui.BLUE), new LinearLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20)));
-        TextView privacyText = Ui.text(this, "Your number is " + profile.optString("phone_visibility", "hidden") + ". You?re in control.", 14, Ui.MUTED, false);
+        TextView privacyText = Ui.text(this, "Your number is " + profile.optString("phone_visibility", "hidden") + ". You're in control.", 14, Ui.MUTED, false);
         Ui.margin(privacyText, 10, 0, 0, 0); privacy.addView(privacyText);
         privacy.setOnClickListener(v -> { currentTab = 4; buildBottomNav(); showProfile(); }); privacy.setMinimumHeight(Ui.dp(this, 48)); page.addView(privacy);
         setPage(page);
@@ -333,7 +479,9 @@ public class MainActivity extends Activity {
         LinearLayout page = page();
         page.addView(Ui.eyebrow(this, "VEHICLE INTELLIGENCE"));
         TextView title = Ui.title(this, "EVERY JOURNEY.\nCONNECTED."); Ui.margin(title, 0, 7, 0, 5); page.addView(title);
-        TextView sub = Ui.text(this, "Connect your vehicle?s Android player and keep every journey close.", 14, Ui.MUTED, false); Ui.margin(sub, 0, 0, 0, 20); page.addView(sub);
+        TextView sub = Ui.text(this, "Connect your vehicle's Android player and keep every journey close.", 14, Ui.MUTED, false); Ui.margin(sub, 0, 0, 0, 20); page.addView(sub);
+
+        if ("owner".equals(session.appRole())) { showOwnerTracking(page); setPage(page); return; }
 
         if (!session.trackerConfigured()) {
             LinearLayout setup = Ui.vertical(this, 24); setup.setBackground(Ui.background(Ui.BLUE, 22, this));
@@ -369,6 +517,51 @@ public class MainActivity extends Activity {
             metrics.addView(tripMetric("MAX SPEED", Math.round(trip.maxSpeedMps * 3.6) + " km/h"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); row.addView(metrics); page.addView(row);
         }
         setPage(page);
+    }
+
+    private void showOwnerTracking(LinearLayout page) {
+        sectionHeader(page, "OWNER VIEW", "Your vehicle players", "Refresh", () -> { showLoading(); loadAll(); });
+        if (trackerDevices.isEmpty()) {
+            LinearLayout empty = Ui.card(this, 24);
+            empty.addView(coloredDisplay("NO CAR PLAYER\nCONNECTED YET.", Ui.INK, 31));
+            TextView copy = Ui.text(this, "Open RoadPing on the Android head unit, choose Android Car Player, sign in with this same account and connect one vehicle.", 13, Ui.MUTED, false); Ui.margin(copy, 0, 14, 0, 0); empty.addView(copy); page.addView(empty);
+        } else for (Models.TrackerDevice device : trackerDevices) {
+            LinearLayout card = Ui.vertical(this, 20); Ui.margin(card, 0, 0, 0, 14); card.setBackground(Ui.background(Ui.NAVY, 18, this));
+            LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout identity = Ui.vertical(this, 0); TextView registration = Ui.title(this, device.registration); registration.setTextColor(Ui.WHITE); registration.setTextSize(31); identity.addView(registration);
+            TextView name = Ui.text(this, device.name, 10, Color.rgb(177,181,195), false); Ui.margin(name, 0, 5, 0, 0); identity.addView(name); top.addView(identity, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            TextView state = Ui.text(this, device.tracking ? "● LIVE" : "OFFLINE", 9, device.tracking ? Ui.TEAL : Ui.PINK, true); top.addView(state); card.addView(top);
+
+            LinearLayout metrics = new LinearLayout(this); Ui.margin(metrics, 0, 20, 0, 16);
+            metrics.addView(playerMetric("SPEED", Math.round(device.speedMps * 3.6) + " km/h"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            metrics.addView(playerMetric("NETWORK", device.networkConnected ? "Connected" : "Offline"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            metrics.addView(playerMetric("SCREEN", device.displayMode.replace('_', ' ')), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); card.addView(metrics);
+            TextView location = Ui.text(this, Double.isNaN(device.latitude) ? "Waiting for the first GPS location" : String.format(Locale.ROOT, "CURRENT LOCATION  %.5f, %.5f", device.latitude, device.longitude), 10, Color.rgb(205,209,221), true); card.addView(location);
+            if (!Double.isNaN(device.latitude)) { Button map = Ui.secondaryButton(this, "OPEN CURRENT LOCATION"); Ui.margin(map, 0, 14, 0, 0); map.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:" + device.latitude + "," + device.longitude + "?q=" + device.latitude + "," + device.longitude + "(" + Uri.encode(device.registration) + ")")))); card.addView(map); }
+
+            TextView displayLabel = Ui.text(this, "PLAYER SCREEN · CHANGE FROM THIS PHONE", 8, Ui.TEAL, true); displayLabel.setLetterSpacing(.09f); Ui.margin(displayLabel, 0, 20, 0, 8); card.addView(displayLabel);
+            LinearLayout choices = new LinearLayout(this); String[][] modes = {{"journey", "JOURNEY"}, {"speed", "SPEED"}, {"clock", "CLOCK"}, {"map", "MAP"}};
+            for (String[] mode : modes) { Button button = mode[0].equals(device.displayMode) ? Ui.primaryButton(this, mode[1]) : Ui.secondaryButton(this, mode[1]); button.setTextSize(9); button.setOnClickListener(v -> updateRemotePlayerDisplay(device, mode[0])); LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1); params.setMargins(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0); choices.addView(button, params); }
+            card.addView(choices); page.addView(card);
+        }
+
+        sectionHeader(page, "JOURNEY HISTORY", "Saved trips", null, null);
+        if (trips.isEmpty()) page.addView(emptyCard("No journeys recorded", "Completed car-player trips will appear here with distance, duration and maximum speed."));
+        else for (Models.Trip trip : trips) {
+            LinearLayout row = Ui.card(this, 16); Ui.margin(row, 0, 0, 0, 10);
+            LinearLayout top = new LinearLayout(this); TextView registration = Ui.text(this, trip.registration, 13, Ui.INK, true); top.addView(registration, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); TextView state = Ui.text(this, trip.status.toUpperCase(Locale.ROOT), 8, "active".equals(trip.status) ? Ui.TEAL_DARK : Ui.BLUE, true); top.addView(state); row.addView(top);
+            TextView when = Ui.text(this, trip.startedAt.replace("T", " ").replace("Z", " UTC"), 9, Ui.MUTED, false); Ui.margin(when, 0, 6, 0, 14); row.addView(when);
+            LinearLayout metrics = new LinearLayout(this); metrics.addView(tripMetric("DISTANCE", String.format(Locale.ROOT, "%.1f km", trip.distanceM / 1000)), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); metrics.addView(tripMetric("DURATION", (trip.durationSeconds / 60) + " min"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); metrics.addView(tripMetric("MAX SPEED", Math.round(trip.maxSpeedMps * 3.6) + " km/h"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)); row.addView(metrics); page.addView(row);
+        }
+    }
+
+    private View playerMetric(String label, String value) {
+        LinearLayout box = Ui.vertical(this, 0); box.addView(Ui.text(this, label, 7, Color.rgb(137,142,155), true)); TextView amount = Ui.text(this, value, 13, Ui.WHITE, true); Ui.margin(amount, 0, 5, 0, 0); box.addView(amount); return box;
+    }
+
+    private void updateRemotePlayerDisplay(Models.TrackerDevice device, String mode) {
+        device.displayMode = mode; toast("Updating " + device.registration + " player screen…"); showTracking();
+        executor.execute(() -> { try { api.updateTrackerDisplayMode(session.accessToken(), device.id, mode); runOnUiThread(() -> toast("Car player screen updated.")); } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); loadAll(); }); } });
     }
 
     private TextView coloredDisplay(String value, int color, float size) { TextView view = Ui.title(this, value); view.setTextColor(color); view.setTextSize(size); return view; }
@@ -409,7 +602,7 @@ public class MainActivity extends Activity {
                 session.configureTracker(device.optString("id"), vehicle.id, vehicle.registration); session.setTrackingEnabled(true);
                 runOnUiThread(() -> {
                     startForegroundService(new Intent(this, TrackingForegroundService.class).setAction(TrackingForegroundService.ACTION_START));
-                    toast("Vehicle Player Mode is active for " + vehicle.registration + "."); showTracking();
+                    toast("Vehicle Player Mode is active for " + vehicle.registration + "."); if ("player".equals(session.appRole())) showPlayerDisplay(); else showTracking();
                     if (!hasBackgroundLocation() || !batteryOptimisationIgnored()) new AlertDialog.Builder(this).setTitle("Finish reliable background setup").setMessage("In Android app settings, set Location to Allow all the time. Then allow RoadPing to run without battery restriction. This lets a head unit resume after power or screen changes.").setNegativeButton("Later", null).setPositiveButton("Open settings", (d, w) -> openAppSettings()).show();
                 });
             } catch (Exception error) { runOnUiThread(() -> toast(error.getMessage())); }
@@ -436,7 +629,7 @@ public class MainActivity extends Activity {
         LinearLayout page = page();
         page.addView(Ui.eyebrow(this, "ACCOUNT SETTINGS"));
         TextView title = Ui.title(this, "MAKE IT YOURS."); Ui.margin(title, 0, 7, 0, 5); page.addView(title);
-        TextView sub = Ui.text(this, "Your details. Your privacy. You?re in control.", 14, Ui.MUTED, false); Ui.margin(sub, 0, 0, 0, 20); page.addView(sub);
+        TextView sub = Ui.text(this, "Your details. Your privacy. You're in control.", 14, Ui.MUTED, false); Ui.margin(sub, 0, 0, 0, 20); page.addView(sub);
         LinearLayout panel = Ui.card(this, 18);
         EditText name = Ui.input(this, "Full name"); name.setText(profile.optString("full_name")); addField(panel, "FULL NAME", name);
         EditText phone = Ui.input(this, "Phone number"); phone.setInputType(InputType.TYPE_CLASS_PHONE); phone.setText(profile.optString("phone")); addField(panel, "PHONE NUMBER", phone);
@@ -528,7 +721,7 @@ public class MainActivity extends Activity {
         LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL);
         TextView brand = Ui.title(this, "ROADPING."); brand.setTextColor(Ui.WHITE); brand.setTextSize(21);
         top.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView state = Ui.text(this, vehicle.active ? "? ACTIVE" : "? PAUSED", 9, vehicle.active ? Color.rgb(180,255,218) : Color.rgb(240,240,240), true);
+        TextView state = Ui.text(this, vehicle.active ? "ACTIVE" : "PAUSED", 9, vehicle.active ? Color.rgb(180,255,218) : Color.rgb(240,240,240), true);
         state.setLetterSpacing(.08f); top.addView(state); art.addView(top);
         LinearLayout identity = new LinearLayout(this); identity.setGravity(Gravity.CENTER_VERTICAL); Ui.margin(identity, 0, 29, 0, 18);
         LinearLayout details = Ui.vertical(this, 0);
@@ -547,8 +740,8 @@ public class MainActivity extends Activity {
         LinearLayout actions = new LinearLayout(this); actions.setGravity(Gravity.CENTER_VERTICAL); actions.setPadding(Ui.dp(this, 18), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
         TextView name = Ui.text(this, vehicle.nickname.isEmpty() ? vehicle.type : vehicle.nickname, 13, Ui.INK, true); name.setMaxLines(2); name.setEllipsize(TextUtils.TruncateAt.END);
         actions.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        Button qr = Ui.secondaryButton(this, "Open card ?"); qr.setTextSize(12); Ui.margin(qr, 10, 0, 0, 0); qr.setOnClickListener(v -> showQrCard(vehicle)); actions.addView(qr);
-        art.setContentDescription("Open smart card for " + vehicle.registration); art.setFocusable(true); art.setOnClickListener(v -> showQrCard(vehicle));
+        Button qr = Ui.secondaryButton(this, "View details →"); qr.setTextSize(12); Ui.margin(qr, 10, 0, 0, 0); qr.setOnClickListener(v -> showVehicleDetails(vehicle)); actions.addView(qr);
+        art.setContentDescription("Open details for " + vehicle.registration); art.setFocusable(true); art.setOnClickListener(v -> showVehicleDetails(vehicle));
         art.setForeground(Ui.interactive(Color.TRANSPARENT, 18, Color.TRANSPARENT, this));
         card.addView(actions); return card;
     }
@@ -557,7 +750,35 @@ public class MainActivity extends Activity {
         if ("ocean".equals(vehicle.theme)) return Ui.BLUE;
         if ("ember".equals(vehicle.theme)) return Color.rgb(77, 20, 39);
         if ("forest".equals(vehicle.theme)) return Color.rgb(12, 63, 52);
+        if ("sand".equals(vehicle.theme)) return Color.rgb(127, 105, 69);
+        if ("violet".equals(vehicle.theme)) return Color.rgb(93, 54, 201);
         return Ui.NAVY;
+    }
+
+    private void showVehicleDetails(Models.Vehicle vehicle) {
+        ScrollView scroll = new ScrollView(this); scroll.setVerticalScrollBarEnabled(false);
+        LinearLayout panel = Ui.vertical(this, 22); panel.setPadding(Ui.dp(this, 4), Ui.dp(this, 8), Ui.dp(this, 4), Ui.dp(this, 12)); scroll.addView(panel);
+        TextView eyebrow = Ui.eyebrow(this, vehicle.active ? "ACTIVE SMART VEHICLE ID" : "CARD PAUSED"); panel.addView(eyebrow);
+        TextView plate = Ui.title(this, vehicle.registration); plate.setTextSize(46); Ui.margin(plate, 0, 10, 0, 4); panel.addView(plate);
+        TextView nickname = Ui.text(this, vehicle.nickname.isEmpty() ? "MY VEHICLE" : vehicle.nickname, 13, Ui.BLUE, true); panel.addView(nickname);
+        LinearLayout facts = Ui.vertical(this, 0); Ui.margin(facts, 0, 24, 0, 20);
+        addVehicleFact(facts, "TYPE", vehicle.type);
+        addVehicleFact(facts, "MAKE & MODEL", (vehicle.make + " " + vehicle.model).trim().isEmpty() ? "Not added" : (vehicle.make + " " + vehicle.model).trim());
+        addVehicleFact(facts, "COLOUR", vehicle.color.isEmpty() ? "Not added" : vehicle.color);
+        addVehicleFact(facts, "YEAR", vehicle.year == 0 ? "Not added" : String.valueOf(vehicle.year));
+        addVehicleFact(facts, "CARD STYLE", vehicle.theme + " / " + vehicle.cardLayout.replace('_', ' ')); panel.addView(facts);
+        Button card = Ui.primaryButton(this, "OPEN LARGE QR CARD"); panel.addView(card);
+        Button tracking = Ui.secondaryButton(this, "LIVE LOCATION & JOURNEYS"); Ui.margin(tracking, 0, 10, 0, 0); panel.addView(tracking);
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(scroll).setNegativeButton("Close", null).create();
+        card.setOnClickListener(v -> { dialog.dismiss(); showQrCard(vehicle); });
+        tracking.setOnClickListener(v -> { dialog.dismiss(); currentTab = 2; if (bottomNav != null) buildBottomNav(); showTracking(); });
+        dialog.show();
+    }
+
+    private void addVehicleFact(LinearLayout container, String label, String value) {
+        LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(0, Ui.dp(this, 13), 0, Ui.dp(this, 13)); row.setBackground(Ui.outlined(Color.TRANSPARENT, 0, Ui.LINE, this));
+        TextView key = Ui.text(this, label, 9, Ui.MUTED, true); key.setLetterSpacing(.08f); row.addView(key, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView detail = Ui.text(this, value, 13, Ui.INK, true); detail.setGravity(Gravity.END); row.addView(detail); container.addView(row);
     }
 
     private View alertRow(Models.Alert alert) {
@@ -570,7 +791,7 @@ public class MainActivity extends Activity {
         row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24)));
         LinearLayout info = Ui.vertical(this, 0); Ui.margin(info, 14, 0, 10, 0);
         TextView title = Ui.text(this, alert.displayType(), 14, Ui.INK, true); info.addView(title);
-        TextView detail = Ui.text(this, alert.registration + (alert.message.isEmpty() ? "" : " ? " + alert.message), 14, Ui.MUTED, false); detail.setMaxLines(2); detail.setEllipsize(TextUtils.TruncateAt.END); Ui.margin(detail, 0, 6, 0, 0); info.addView(detail);
+        TextView detail = Ui.text(this, alert.registration + (alert.message.isEmpty() ? "" : " / " + alert.message), 14, Ui.MUTED, false); detail.setMaxLines(2); detail.setEllipsize(TextUtils.TruncateAt.END); Ui.margin(detail, 0, 6, 0, 0); info.addView(detail);
         row.addView(info, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         if (fresh) { TextView badge = Ui.text(this, "NEW", 8, Ui.BLUE, true); badge.setPadding(Ui.dp(this, 8), Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6)); badge.setBackground(Ui.background(Ui.WHITE, 20, this)); row.addView(badge); }
         else row.addView(Ui.icon(this, "arrow", Ui.MUTED), new LinearLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18)));
@@ -586,7 +807,7 @@ public class MainActivity extends Activity {
 
     private void showAddVehicleDialog() {
         LinearLayout form = Ui.vertical(this, 16);
-        EditText registration = Ui.input(this, "WP CAB-1234"); addField(form, "REGISTRATION NUMBER", registration);
+        EditText registration = Ui.input(this, "CAB-2048 or 64-1234"); addField(form, "REGISTRATION / MAIN PLATE NUMBER", registration);
         EditText nickname = Ui.input(this, "Daily ride"); addField(form, "NICKNAME", nickname);
         EditText make = Ui.input(this, "Toyota"); addField(form, "MAKE", make);
         EditText model = Ui.input(this, "Corolla"); addField(form, "MODEL", model);
@@ -599,7 +820,7 @@ public class MainActivity extends Activity {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setText("Creating…");
             executor.execute(() -> {
                 try {
-                    JSONObject values = new JSONObject().put("registration_number", registration.getText().toString().trim().toUpperCase(Locale.ROOT)).put("nickname", nickname.getText().toString().trim()).put("vehicle_type", type.getSelectedItem().toString()).put("make", make.getText().toString().trim()).put("model", model.getText().toString().trim()).put("color", color.getText().toString().trim()).put("card_theme", "midnight");
+                    JSONObject values = new JSONObject().put("registration_number", registration.getText().toString().trim().toUpperCase(Locale.ROOT)).put("nickname", nickname.getText().toString().trim()).put("vehicle_type", type.getSelectedItem().toString()).put("make", make.getText().toString().trim()).put("model", model.getText().toString().trim()).put("color", color.getText().toString().trim()).put("card_theme", "midnight").put("card_layout", "qr_focus");
                     Models.Vehicle created = api.addVehicle(session.accessToken(), session.userId(), values); vehicles.add(0, created);
                     runOnUiThread(() -> { dialog.dismiss(); toast("Smart card created."); showFulfillmentChoice(created); renderCurrent(); });
                 } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setText("Create card"); }); }
@@ -631,12 +852,12 @@ public class MainActivity extends Activity {
             TextView identity = Ui.text(this, "VEHICLE SMART CARD / BY HICH", 8, Color.rgb(212,212,221), true); identity.setLetterSpacing(.12f); Ui.margin(identity, 0, 7, 0, 20); card.addView(identity);
             TextView plate = Ui.title(this, vehicle.registration); plate.setTextColor(Ui.WHITE); plate.setTextSize(36); plate.setGravity(Gravity.CENTER); card.addView(plate);
             TextView details = Ui.text(this, vehicle.description().isEmpty() ? vehicle.type : vehicle.description(), 12, Color.rgb(220,220,230), false); details.setGravity(Gravity.CENTER); Ui.margin(details, 0, 8, 0, 22); card.addView(details);
-            int qrSize = Math.min(Ui.dp(this, 240), getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 132));
+            int qrSize = Math.min(Ui.dp(this, 310), getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 80));
             ImageView qr = new ImageView(this); qr.setImageBitmap(qrBitmap(url, 720)); qr.setContentDescription("Scan to contact the owner of " + vehicle.registration);
             qr.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8)); qr.setBackground(Ui.background(Ui.WHITE, 14, this)); card.addView(qr, new LinearLayout.LayoutParams(qrSize, qrSize));
             TextView line = Ui.text(this, vehicle.active ? "SCAN TO CONNECT." : "CARD CURRENTLY PAUSED", 10, vehicle.active ? Ui.WHITE : Ui.PINK, true); line.setLetterSpacing(.1f); line.setGravity(Gravity.CENTER); Ui.margin(line, 0, 20, 0, 0); card.addView(line);
             TextView privacy = Ui.text(this, "No app needed. Your number stays private.", 10, Color.rgb(209,209,218), false); privacy.setGravity(Gravity.CENTER); Ui.margin(privacy, 0, 8, 0, 5); card.addView(privacy); panel.addView(card);
-            Button share = Ui.primaryButton(this, "Share vehicle link  ?"); panel.addView(share);
+            Button share = Ui.primaryButton(this, "Share vehicle link  ->"); panel.addView(share);
             Button open = Ui.secondaryButton(this, "Preview scan page"); Ui.margin(open, 0, 10, 0, 0); panel.addView(open);
             Button print = Ui.secondaryButton(this, "Get a printed card"); Ui.margin(print, 0, 10, 0, 0); panel.addView(print);
             AlertDialog dialog = new AlertDialog.Builder(this).setView(scroll).create();
@@ -667,37 +888,6 @@ public class MainActivity extends Activity {
             catch (Exception error) { runOnUiThread(() -> toast(error.getMessage())); }
         })).show();
         if ("new".equals(alert.status)) executor.execute(() -> { try { api.updateAlertStatus(session.accessToken(), alert.id, "seen"); alert.status = "seen"; } catch (Exception ignored) {} });
-    }
-
-    private void showRecoveryEmailDialog() {
-        EditText email = Ui.input(this, "Registered email address"); email.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        LinearLayout form = Ui.vertical(this, 18); form.addView(Ui.text(this, "OTP IS USED ONLY FOR FORGOTTEN PASSWORDS.", 9, Ui.BLUE, true)); Ui.margin(email, 0, 15, 0, 0); form.addView(email);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Recover your account").setView(form).setNegativeButton("Cancel", null).setPositiveButton("Send OTP", null).create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String address = email.getText().toString().trim(); if (address.isEmpty()) { email.setError("Email is required"); return; }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setText("SENDING...");
-            executor.execute(() -> { try { api.sendRecoveryOtp(address); runOnUiThread(() -> { dialog.dismiss(); showRecoveryOtpDialog(address); }); } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setText("Send OTP"); }); } });
-        })); dialog.show();
-    }
-
-    private void showRecoveryOtpDialog(String email) {
-        EditText otp = Ui.input(this, "000000"); otp.setInputType(InputType.TYPE_CLASS_NUMBER); otp.setGravity(Gravity.CENTER); otp.setLetterSpacing(.25f);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Enter six-digit recovery code").setMessage("The OTP was sent to " + email + ".").setView(otp).setNegativeButton("Cancel", null).setPositiveButton("Verify code", null).create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            if (otp.getText().length() != 6) { otp.setError("Enter all 6 digits"); return; }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-            executor.execute(() -> { try { JSONObject auth = api.verifyRecoveryOtp(email, otp.getText().toString()); String token = auth.optString("access_token"); if (token.isEmpty()) throw new Exception("The recovery code could not be verified."); runOnUiThread(() -> { dialog.dismiss(); showNewPasswordDialog(token); }); } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); }); } });
-        })); dialog.show();
-    }
-
-    private void showNewPasswordDialog(String recoveryToken) {
-        LinearLayout form = Ui.vertical(this, 18); EditText password = Ui.passwordInput(this, "New password - 8+ characters"); EditText confirm = Ui.passwordInput(this, "Confirm new password"); addField(form, "NEW PASSWORD", password); addField(form, "CONFIRM PASSWORD", confirm);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Choose a new password").setView(form).setNegativeButton("Cancel", null).setPositiveButton("Save password", null).create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            if (password.getText().length() < 8) { password.setError("Use at least 8 characters"); return; } if (!password.getText().toString().equals(confirm.getText().toString())) { confirm.setError("Passwords do not match"); return; }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-            executor.execute(() -> { try { api.updatePassword(recoveryToken, password.getText().toString()); runOnUiThread(() -> { dialog.dismiss(); toast("Password changed. Sign in with the new password."); showLogin(false); }); } catch (Exception error) { runOnUiThread(() -> { toast(error.getMessage()); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); }); } });
-        })); dialog.show();
     }
 
     private void addField(LinearLayout container, String label, EditText input) {

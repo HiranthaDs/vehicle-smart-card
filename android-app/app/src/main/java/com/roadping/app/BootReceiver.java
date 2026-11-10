@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 
 public class BootReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
+        if (intent == null || !Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) return;
         SessionManager session = new SessionManager(context);
         if (!session.isSignedIn() || !session.trackerConfigured() || !session.trackingEnabled()) return;
         if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;

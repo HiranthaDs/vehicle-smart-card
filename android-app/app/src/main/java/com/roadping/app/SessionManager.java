@@ -35,6 +35,26 @@ public class SessionManager {
     public String trackingVehicleName() { return prefs.getString("tracking_vehicle_name", "Vehicle"); }
     public boolean trackerConfigured() { return !trackerDeviceId().isEmpty() && !trackingVehicleId().isEmpty(); }
     public boolean trackingEnabled() { return prefs.getBoolean("tracking_enabled", false); }
+    public String appRole() { return prefs.getString("app_role", ""); }
+    public void setAppRole(String role) { prefs.edit().putString("app_role", role).apply(); }
+    public String displayMode() { return prefs.getString("display_mode", "journey"); }
+    public void setDisplayMode(String mode) { prefs.edit().putString("display_mode", mode).apply(); }
+    public double lastLatitude() { return Double.longBitsToDouble(prefs.getLong("last_latitude", Double.doubleToRawLongBits(Double.NaN))); }
+    public double lastLongitude() { return Double.longBitsToDouble(prefs.getLong("last_longitude", Double.doubleToRawLongBits(Double.NaN))); }
+    public float lastSpeedMps() { return prefs.getFloat("last_speed_mps", 0f); }
+    public float lastBearing() { return prefs.getFloat("last_bearing", 0f); }
+    public float lastAccuracyM() { return prefs.getFloat("last_accuracy_m", 0f); }
+    public long lastLocationAt() { return prefs.getLong("last_location_at", 0L); }
+    public void setLastLocation(double latitude, double longitude, float speedMps, float bearing, float accuracyM, long recordedAt) {
+        prefs.edit()
+                .putLong("last_latitude", Double.doubleToRawLongBits(latitude))
+                .putLong("last_longitude", Double.doubleToRawLongBits(longitude))
+                .putFloat("last_speed_mps", speedMps)
+                .putFloat("last_bearing", bearing)
+                .putFloat("last_accuracy_m", accuracyM)
+                .putLong("last_location_at", recordedAt)
+                .apply();
+    }
     public void configureTracker(String deviceId, String vehicleId, String vehicleName) { prefs.edit().putString("tracker_device_id", deviceId).putString("tracking_vehicle_id", vehicleId).putString("tracking_vehicle_name", vehicleName).apply(); }
     public void setTrackingSession(String id) { prefs.edit().putString("tracking_session_id", id == null ? "" : id).apply(); }
     public void setTrackingEnabled(boolean enabled) { prefs.edit().putBoolean("tracking_enabled", enabled).apply(); }

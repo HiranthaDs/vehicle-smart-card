@@ -12,9 +12,17 @@ const themes = [
   { id: 'ocean', label: 'Ocean' },
   { id: 'ember', label: 'Ember' },
   { id: 'forest', label: 'Forest' },
+  { id: 'sand', label: 'Sand' },
+  { id: 'violet', label: 'Violet' },
 ]
 
-const emptyForm = { registration_number: '', nickname: '', vehicle_type: 'Car', make: '', model: '', color: '', year: '', card_theme: 'midnight', is_active: true }
+const layouts = [
+  { id: 'balanced', label: 'Balanced', description: 'Vehicle and QR share the card.' },
+  { id: 'qr_focus', label: 'Large QR', description: 'Best for quick roadside scanning.' },
+  { id: 'minimal', label: 'Minimal', description: 'Quiet, clean and print friendly.' },
+]
+
+const emptyForm = { registration_number: '', nickname: '', vehicle_type: 'Car', make: '', model: '', color: '', year: '', card_theme: 'midnight', card_layout: 'balanced', is_active: true }
 
 export function VehicleFormPage() {
   const { id } = useParams()
@@ -39,6 +47,7 @@ export function VehicleFormPage() {
         color: data.color || '',
         year: data.year?.toString() || '',
         card_theme: data.card_theme || 'midnight',
+        card_layout: data.card_layout || 'balanced',
         is_active: data.is_active,
       })
       setLoading(false)
@@ -55,11 +64,13 @@ export function VehicleFormPage() {
     setSaving(true)
     setError('')
     try {
-      const payload = { ...form, registration_number: formatRegistration(form.registration_number), year: form.year ? Number(form.year) : null, owner_id: user.id }
+      const registration = formatRegistration(form.registration_number).trim()
+      if (registration.length < 2) throw new Error('Enter the registration shown on the number plate.')
+      const payload = { ...form, registration_number: registration, year: form.year ? Number(form.year) : null, owner_id: user.id }
       const query = editing ? supabase.from('vehicles').update(payload).eq('id', id!).eq('owner_id', user.id).select().single() : supabase.from('vehicles').insert(payload).select().single()
       const { data, error: mutationError } = await query
       if (mutationError) throw mutationError
-      navigate(`/app/card/${data.id}`, { replace: true })
+      navigate(`/app/vehicles/${data.id}`, { replace: true })
     } catch (mutationError) {
       setError(humanError(mutationError))
     } finally { setSaving(false) }
@@ -78,7 +89,7 @@ export function VehicleFormPage() {
         <form className="panel form-panel" onSubmit={submit}>
           <div className="form-section-title"><span><CarFront /></span><div><h3>Vehicle details</h3><p>Add enough detail to help a scanner identify the right vehicle.</p></div></div>
           <div className="form-grid two">
-            <label className="wide"><span>Vehicle registration number *</span><input required value={form.registration_number} onChange={(e) => update('registration_number', formatRegistration(e.target.value))} placeholder="WP CAB-1234" /></label>
+            <label className="wide registration-field"><span>Vehicle registration number *</span><input required maxLength={18} autoCapitalize="characters" value={form.registration_number} onChange={(e) => update('registration_number', formatRegistration(e.target.value))} placeholder="CAB-2048 or 64-1234" /><small>Use the main plate number only. Letters and older numeric formats are accepted.</small></label>
             <label><span>Nickname</span><input value={form.nickname} onChange={(e) => update('nickname', e.target.value)} placeholder="Daily ride" /></label>
             <label><span>Vehicle type</span><select value={form.vehicle_type} onChange={(e) => update('vehicle_type', e.target.value)}><option>Car</option><option>Motorbike</option><option>Van</option><option>Three-wheeler</option><option>Truck</option><option>Bus</option><option>Other</option></select></label>
             <label><span>Make</span><input value={form.make} onChange={(e) => update('make', e.target.value)} placeholder="Toyota" /></label>
@@ -88,6 +99,7 @@ export function VehicleFormPage() {
           </div>
           <div className="form-section-title theme-title"><span><Palette /></span><div><h3>Card style</h3><p>Pick a high-contrast look for your printed smart card.</p></div></div>
           <div className="theme-picker">{themes.map((theme) => <button type="button" className={`${theme.id} ${form.card_theme === theme.id ? 'selected' : ''}`} key={theme.id} onClick={() => update('card_theme', theme.id)}><i />{theme.label}{form.card_theme === theme.id && <Check />}</button>)}</div>
+          <div className="layout-picker" aria-label="Card layout">{layouts.map((layout) => <button type="button" className={form.card_layout === layout.id ? 'selected' : ''} key={layout.id} onClick={() => update('card_layout', layout.id)}><span>{layout.label}</span><small>{layout.description}</small>{form.card_layout === layout.id && <Check />}</button>)}</div>
           <label className="toggle-row"><span><strong>Card active</strong><small>When paused, public reports are disabled.</small></span><input type="checkbox" checked={form.is_active} onChange={(e) => update('is_active', e.target.checked)} /><i /></label>
           <div className="form-actions"><Link className="button ghost" to="/app/vehicles">Cancel</Link><Button type="submit" loading={saving}><Save size={17} /> {editing ? 'Save changes' : 'Create smart card'}</Button></div>
         </form>
