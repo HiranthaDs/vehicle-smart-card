@@ -1,0 +1,20 @@
+{
+  "name": "RoadPing — Smart Vehicle Card",
+  "short_name": "RoadPing",
+  "description": "Manage smart vehicle cards and receive private QR incident alerts.",
+  "start_url": "/#/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7f9",
+  "theme_color": "#071321",
+  "categories": ["utilities", "auto", "safety"],
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Vehicle alerts", "url": "/#/app/alerts", "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }] },
+    { "name": "My vehicles", "url": "/#/app/vehicles", "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }] }
+  ]
+}

@@ -1,0 +1,39 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+local.properties
+*.jks
+*.keystore
+
+# Logs and generated TypeScript metadata
+*.log
+*.tsbuildinfo
+
+# Web dependencies and builds
+web/node_modules/
+web/dist/
+web/vite.config.js
+web/vite.config.d.ts
+
+# Android builds and local caches
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/captures/
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Local publishing/synchronization artifacts
+site-sync/
+*.zip
+*.tar.gz

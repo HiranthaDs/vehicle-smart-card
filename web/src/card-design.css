@@ -1,0 +1,133 @@
+/* The physical card scales with its container, including garage previews. */
+.vehicle-card.roadping-card {
+  --card-ink: #f5f5f3;
+  --card-soft: #b8b8b5;
+  --card-line: #ffffff29;
+  --card-accent: #ff3454;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 580px;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 24px 24px 0;
+  border: 1px solid #ffffff29;
+  border-radius: 18px;
+  overflow: hidden;
+  color: var(--card-ink);
+  background: #101010;
+  box-shadow: 0 20px 46px #08080824, 0 2px 4px #08080814;
+  text-align: left;
+  isolation: isolate;
+}
+.vehicle-card.roadping-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(135deg, #ffffff0b, transparent 55%);
+}
+.vehicle-card.roadping-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 290px;
+  height: 290px;
+  top: -200px;
+  right: -70px;
+  border: 1px solid var(--card-line);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px #ffffff03, 0 0 0 56px #ffffff03;
+  transform: none;
+}
+.vehicle-card.roadping-card.theme-ocean { background: #1043f9; --card-soft: #e0e6ff; --card-accent: #ffffff; }
+.vehicle-card.roadping-card.theme-ember { background: #ff3454; --card-ink: #080808; --card-soft: #3a0b14; --card-line: #08080833; --card-accent: #080808; }
+.vehicle-card.roadping-card.theme-forest { background: #18cb96; --card-ink: #080808; --card-soft: #103f32; --card-line: #08080833; --card-accent: #080808; }
+.roadping-card .rp-card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.roadping-card .rp-card-brand { font-family: Anton, 'Arial Narrow', sans-serif; font-size: clamp(20px, 6cqi, 28px); line-height: 1; letter-spacing: -.025em; }
+.roadping-card .rp-card-brand > span { display: inline-block; margin-left: 3px; font-family: Inter, sans-serif; color: var(--card-accent); font-size: .7em; vertical-align: top; }
+.roadping-card .rp-card-status { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; border: 1px solid var(--card-line); border-radius: 99px; padding: 7px 9px; color: var(--card-ink); font-size: clamp(7px, 1.9cqi, 9px); font-weight: 600; letter-spacing: .07em; }
+.roadping-card .rp-card-status i { width: 5px; height: 5px; border-radius: 50%; background: #18cb96; }
+.roadping-card.theme-forest .rp-card-status i, .roadping-card.theme-ember .rp-card-status i { background: #080808; }
+.roadping-card .rp-card-status.paused i { background: #aaa; }
+.roadping-card .rp-card-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 30%); align-items: center; gap: 16px; margin: 30px 0 22px; }
+.roadping-card .rp-card-identity { min-width: 0; }
+.roadping-card .rp-card-label { display: block; font-family: Inter, sans-serif; font-size: clamp(7px, 1.8cqi, 9px); font-weight: 500; line-height: 1.5; letter-spacing: .12em; color: var(--card-soft); }
+.roadping-card .rp-card-registration { display: block; font-family: Anton, 'Arial Narrow', sans-serif; font-size: clamp(22px, 7.6cqi, 40px); font-weight: 400; line-height: 1.12; letter-spacing: .015em; color: var(--card-ink); margin: 9px 0 10px; overflow-wrap: anywhere; }
+.roadping-card .rp-card-identity p { margin: 0; font-size: clamp(10px, 2.5cqi, 13px); line-height: 1.5; font-weight: 600; overflow-wrap: anywhere; }
+.roadping-card .rp-card-identity p > span { display: block; font-size: .9em; font-weight: 400; color: var(--card-soft); }
+.roadping-card .rp-card-qr-block { min-width: 0; }
+.roadping-card .rp-card-qr { width: 100%; aspect-ratio: 1; padding: 3px; border-radius: 9px; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.roadping-card .rp-card-qr img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+.roadping-card .rp-card-qr-error { padding: 8px; color: #080808; text-align: center; font-size: 10px; }
+.roadping-card .rp-card-qr-block > span { display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 7px; font-size: clamp(6px, 1.75cqi, 8px); font-weight: 600; letter-spacing: .07em; white-space: nowrap; }
+.roadping-card .rp-card-owner { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 0 18px; color: var(--card-soft); font-size: clamp(9px, 2.2cqi, 11px); }
+.roadping-card .rp-card-owner > span:first-child { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.roadping-card .rp-card-owner svg { flex-shrink: 0; color: var(--card-accent); }
+.roadping-card .rp-card-owner > span span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roadping-card .rp-card-owner > span:last-child { max-width: 45%; text-transform: uppercase; font-size: .8em; letter-spacing: .08em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roadping-card .rp-card-bottom { display: flex; justify-content: space-between; gap: 12px; margin: 0 -24px; padding: 14px 24px; border-top: 1px solid var(--card-line); background: #0000000b; font-size: clamp(7px, 1.9cqi, 9px); font-weight: 600; letter-spacing: .09em; }
+.roadping-card .rp-card-bottom > span:last-child { display: flex; align-items: center; gap: 6px; color: var(--card-soft); }
+@container (max-width: 320px) {
+  .roadping-card .rp-card-main { margin: 23px 0 18px; gap: 12px; }
+  .roadping-card .rp-card-owner { padding-bottom: 14px; }
+  .roadping-card .rp-card-status { padding: 6px 7px; }
+}
+
+/* Card studio: the preview is central, with deliberate, thumb-sized actions. */
+.card-page .card-page-grid { grid-template-columns: minmax(0, 1.35fr) minmax(290px, .7fr); gap: 28px; }
+.card-page .card-stage { min-width: 0; text-align: left; }
+.card-page .card-stage h1 { font-size: clamp(38px, 4.6vw, 64px); line-height: 1; letter-spacing: -.02em; margin: 12px 0 14px; }
+.card-page .card-stage > p { font-size: 14px; line-height: 1.7; max-width: 430px; }
+.card-page .card-preview-surface { position: relative; margin: 28px 0 18px; padding: 38px 25px 24px; border: 1px solid #dededb; border-radius: 16px; background: #eeeee9; background-image: radial-gradient(#08080816 .7px, transparent .7px); background-size: 12px 12px; }
+.card-page .export-card-wrap { margin: 0 auto 24px; width: 100%; }
+.card-page .card-preview-caption { display: flex; align-items: center; justify-content: center; gap: 6px; color: #686868; font-size: 10px; }
+.card-page .card-preview-caption svg { color: #1043f9; }
+.card-page .card-toolbar { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 8px; }
+.card-page .card-toolbar .button { min-height: 52px; min-width: 0; font-size: 11px; }
+.card-page .card-toolbar .button:first-child { grid-column: auto; }
+.card-page .card-edit-link { display: flex; justify-content: center; gap: 6px; align-items: center; min-height: 48px; margin-top: 7px; color: #686868; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.card-page .card-side-panel { width: 100%; max-width: none; margin: 0; border: 1px solid #dededb; border-radius: 16px; padding: 24px; text-align: left; }
+.card-page .card-active-heading { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+.card-page .success-seal { flex-shrink: 0; margin: 0; width: 44px; height: 44px; border-radius: 50%; color: #080808; background: #18cb96; }
+.card-page .card-active-heading h2 { margin: 0 0 4px; font-size: 18px; }
+.card-page .card-active-heading p { margin: 0; color: #686868; font-size: 12px; }
+.card-page .card-side-panel > p { font-size: 13px; line-height: 1.65; }
+.card-page .link-box { min-width: 0; grid-template-columns: minmax(0, 1fr) 44px; gap: 3px 8px; border: 1px solid #dededb; border-radius: 8px; background: #f5f5f3; padding: 10px 6px 10px 12px; }
+.card-page .link-box small { grid-column: 1; color: #686868; font-size: 9px; }
+.card-page .link-box span { align-self: center; color: #080808; font-size: 12px; }
+.card-page .link-box button { grid-column: 2; grid-row: 1 / 3; display: grid; place-items: center; min-height: 44px; border-radius: 6px; color: #1043f9; }
+.card-page .link-box button:hover { background: #1043f910; }
+.card-page .link-box button svg { width: 18px; }
+.card-page .card-side-panel .button { min-height: 48px; font-size: 11px; }
+.card-page .hich-print-callout { border-radius: 10px; margin: 24px 0 0; padding: 22px; }
+.card-page .hich-print-callout h3 { font-size: 30px; }
+.card-page .hich-print-callout p { font-size: 12px; line-height: 1.7; }
+.card-page .hich-print-callout > small { font-size: 9px; }
+.card-page .hich-print-callout strong { font-size: 34px; }
+.card-page .hich-print-callout strong span { font-size: 9px; }
+.card-page .print-tips { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.card-page .print-tips h3 { font-size: 14px; }
+.card-page .print-tips ul { font-size: 12px; line-height: 1.65; gap: 9px; }
+.card-page .card-load-state { min-height: 300px; display: grid; align-content: center; justify-items: center; gap: 16px; }
+.card-page .card-load-state svg { color: #1043f9; }
+.card-page .card-load-state p { color: #686868; font-size: 14px; }
+
+@media (max-width: 1100px) {
+  .card-page .card-page-grid { grid-template-columns: minmax(0, 1fr); }
+  .card-page .card-side-panel { max-width: none; }
+}
+@media (max-width: 600px) {
+  .vehicle-card.roadping-card { padding: 20px 18px 0; border-radius: 15px; }
+  .roadping-card .rp-card-bottom { margin: 0 -18px; padding: 12px 18px; }
+  .card-page .card-preview-surface { padding: 24px 12px 18px; margin-top: 24px; }
+  .card-page .card-side-panel { padding: 20px; }
+  .card-page .card-toolbar { grid-template-columns: 1fr 1fr; }
+  .card-page .card-toolbar .button:first-child { grid-column: 1 / -1; }
+  .card-page .card-toolbar .button { min-height: 50px; }
+}
+@media print {
+  .card-page .export-card-wrap { position: fixed; inset: 12mm auto auto 12mm; margin: 0; width: 160mm; display: block; }
+  .card-page .export-card-wrap .vehicle-card.roadping-card { width: 160mm; max-width: none; padding: 24px 24px 0; border-radius: 18px; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .card-page .roadping-card .rp-card-bottom { margin: 0 -24px; padding: 14px 24px; }
+  .card-page .roadping-card .rp-card-qr-block { min-width: 36mm; }
+}

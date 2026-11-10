@@ -1,0 +1,2 @@
+-- Optional local demo data should be added through a real authenticated user.
+-- No fake production owners or vehicles are inserted by default.
